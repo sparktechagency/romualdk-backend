@@ -48,4 +48,18 @@ router
 
 router.patch("/switch-profile", auth(USER_ROLES.USER, USER_ROLES.HOST), UserController.switchProfile)
 
+router.route("/host-request")
+    .get(auth(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN), UserController.getAllHostRequests)
+
+router.route("/host-request/:id")
+    .get(auth(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN), UserController.getHostRequestById)
+    .delete(auth(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN), UserController.deleteHostRequestById)
+
+router.route("/host-request/status/:id")
+    .patch(auth(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN), UserController.changeHostRequestStatusById)
+
+
+
+
+
 export const UserRoutes = router;

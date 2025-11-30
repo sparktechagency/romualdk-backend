@@ -140,7 +140,7 @@ const getAllHostRequestsFromDB = async () => {
 }
 
 const getHostRequestByIdFromDB = async (id: string) => {
-    const result = await User.findById(id);
+    const result = await User.findOne({ _id: id, hostStatus: { $in: [HOST_STATUS.PENDING, HOST_STATUS.APPROVED, HOST_STATUS.REJECTED] } });
 
     if (!result) throw new ApiError(404, "No host requsest is found in the database by this ID");
 
@@ -150,11 +150,39 @@ const getHostRequestByIdFromDB = async (id: string) => {
 
 const changeHostRequestStatusByIdFromDB = async (id: string, hostStatus: HOST_STATUS.PENDING | HOST_STATUS.APPROVED | HOST_STATUS.REJECTED) => {
 
-    const result = await User.findByIdAndUpdate(id, { hostStatus }, { new: true });
+    const user = await User.findOne({ _id: id, hostStatus: { $in: [HOST_STATUS.PENDING, HOST_STATUS.APPROVED, HOST_STATUS.REJECTED] } });
+
+    const userId = user?._id;
+
+    if (!user) throw new ApiError(404, "No user is found host requst by this ID")
+
+    const result = await User.findByIdAndUpdate(userId, { hostStatus }, { new: true });
 
     if (!result) throw new ApiError(404, "Failed to change host request status");
 
     return result;
+
+}
+
+const deleteHostRequestByIdFromDB = async (id: string) => {
+    const user = await User.findById(id);
+    console.log(user, "USER")
+
+    if (!user) throw new ApiError(404, "No user is found by this ID")
+
+    if (user?.hostStatus === HOST_STATUS.NONE) throw new ApiError(404, "No host request found in this ID");
+
+    user.hostStatus = HOST_STATUS.NONE;
+    user.nidFrontPic = ""
+    user.nidBackPic = ""
+
+    if (user.drivingLicenseFrontPic) user.drivingLicenseFrontPic = ""
+    if (user.drivingLicenseBackPic) user.drivingLicenseBackPic = ""
+
+    await user.save();
+
+    return user;
+
 
 }
 
@@ -168,4 +196,5 @@ export const UserService = {
     getAllHostRequestsFromDB,
     getHostRequestByIdFromDB,
     changeHostRequestStatusByIdFromDB,
+    deleteHostRequestByIdFromDB,
 };

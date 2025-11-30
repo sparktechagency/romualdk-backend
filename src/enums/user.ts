@@ -16,6 +16,7 @@ export enum STATUS {
 }
 
 export enum HOST_STATUS {
+    NONE = "NONE",
     PENDING = "PENDING",
     APPROVED = "APPROVED",
     REJECTED = "REJECTED"

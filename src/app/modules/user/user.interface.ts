@@ -28,10 +28,10 @@ export type IUser = {
 };
 
 export interface IHostRequestInput {
-  nidFrontPic: string;
-  nidBackPic: string;
-  drivingLicenseFrontPic?: string;
-  drivingLicenseBackPic?: string;
+    nidFrontPic: string;
+    nidBackPic: string;
+    drivingLicenseFrontPic?: string;
+    drivingLicenseBackPic?: string;
 }
 
 export type UserModal = {

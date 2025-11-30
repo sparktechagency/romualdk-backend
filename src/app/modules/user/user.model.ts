@@ -47,11 +47,11 @@ const userSchema = new Schema<IUser, UserModal>(
         },
         nidFrontPic: {
             type: String,
-            required: true,
+            default: ""
         },
         nidBackPic: {
             type: String,
-            required: true,
+            default: ""
         },
         drivingLicenseFrontPic: {
             type: String,

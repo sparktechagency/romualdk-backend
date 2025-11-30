@@ -104,6 +104,59 @@ const createHostRequest = catchAsync(async (req, res) => {
   })
 })
 
+const getAllHostRequests = catchAsync(async (req, res) => {
+
+  const result = await UserService.getAllHostRequestsFromDB();
+
+  sendResponse(res, {
+    success: true,
+    statusCode: 200,
+    message: "Successfully retrieved are host requests data",
+    data: result,
+  })
+
+})
+
+const getHostRequestById = catchAsync(async (req, res) => {
+  const { id } = req.params;
+  const result = await UserService.getHostRequestByIdFromDB(id);
+  sendResponse(res, {
+    success: true,
+    statusCode: 200,
+    message: "Successfully retrieve host by ID",
+    data: result,
+  })
+})
+
+const changeHostRequestStatusById = catchAsync(async (req, res) => {
+  const { id } = req.params;
+  const { hostStatus } = req.body;
+
+  const result = await UserService.changeHostRequestStatusByIdFromDB(id, hostStatus);
+
+  sendResponse(res, {
+    success: true,
+    statusCode: 200,
+    message: "Successfully change host status by ID",
+    data: result,
+  })
+
+})
+
+const deleteHostRequestById = catchAsync(async (req, res) => {
+
+  const { id } = req.params;
+  const result = await UserService.deleteHostRequestByIdFromDB(id);
+
+  sendResponse(res, {
+    success: true,
+    statusCode: 200,
+    message: "Successfully delete host request by this ID",
+    data: result
+  })
+
+})
+
 export const UserController = {
   createUser,
   createAdmin,
@@ -111,4 +164,8 @@ export const UserController = {
   updateProfile,
   switchProfile,
   createHostRequest,
+  getAllHostRequests,
+  getHostRequestById,
+  changeHostRequestStatusById,
+  deleteHostRequestById,
 };
