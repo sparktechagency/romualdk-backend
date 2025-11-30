@@ -100,13 +100,13 @@ const createHostRequest = catchAsync(async (req, res) => {
     success: true,
     statusCode: 200,
     message: "Successfully host requst send",
-    data: result,
+    data: result
   })
 })
 
 const getAllHostRequests = catchAsync(async (req, res) => {
 
-  const result = await UserService.getAllHostRequestsFromDB();
+  const result = await UserService.getAllHostRequestsFromDB(req.query);
 
   sendResponse(res, {
     success: true,

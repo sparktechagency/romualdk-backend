@@ -8,6 +8,7 @@ import unlinkFile from "../../../shared/unlinkFile";
 import { twilioService } from "../twilioService/sendOtpWithVerify";
 import { jwtHelper } from "../../../helpers/jwtHelper";
 import config from "../../../config";
+import QueryBuilder from "../../builder/queryBuilder";
 
 const createAdminToDB = async (payload: any): Promise<IUser> => {
 
@@ -59,7 +60,6 @@ const createUserToDB = async (payload: Partial<IUser>) => {
     return result;
 
 };
-
 
 const getUserProfileFromDB = async (user: JwtPayload): Promise<Partial<IUser>> => {
     const { id } = user;
@@ -134,12 +134,26 @@ const createHostRequestToDB = async (userId: string, payload: IHostRequestInput)
 
 }
 
-const getAllHostRequestsFromDB = async () => {
-    const result = await User.find({ hostStatus: { $in: [HOST_STATUS.PENDING, HOST_STATUS.APPROVED, HOST_STATUS.REJECTED] } });
+const getAllHostRequestsFromDB = async (query: any) => {
+    const baseQuery = User.find({ hostStatus: { $in: [HOST_STATUS.PENDING, HOST_STATUS.APPROVED, HOST_STATUS.REJECTED] } });
 
-    if (!result) throw new ApiError(404, "Host requests are not found in the database");
+    const queryBuilder = new QueryBuilder(baseQuery, query)
+        .search(["firstName", "lastName", "fullName", "email", "phone"])
+        .sort()
+        .fields()
+        .filter()
+        .paginate();
 
-    return result;
+    const hosts = await queryBuilder.modelQuery;
+
+    const meta = await queryBuilder.countTotal();
+
+    if (!hosts) throw new ApiError(404, "Host requests are not found in the database");
+
+    return {
+        data: hosts,
+        meta,
+    }
 
 }
 
