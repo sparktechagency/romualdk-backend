@@ -130,6 +130,34 @@ const createHostRequestToDB = async (userId: string, payload: IHostRequestInput)
 
 }
 
+const getAllHostRequestsFromDB = async () => {
+    const result = await User.find({ hostStatus: { $in: [HOST_STATUS.PENDING, HOST_STATUS.APPROVED, HOST_STATUS.REJECTED] } });
+
+    if (!result) throw new ApiError(404, "Host requests are not found in the database");
+
+    return result;
+
+}
+
+const getHostRequestByIdFromDB = async (id: string) => {
+    const result = await User.findById(id);
+
+    if (!result) throw new ApiError(404, "No host requsest is found in the database by this ID");
+
+    return result;
+
+}
+
+const changeHostRequestStatusByIdFromDB = async (id: string, hostStatus: HOST_STATUS.PENDING | HOST_STATUS.APPROVED | HOST_STATUS.REJECTED) => {
+
+    const result = await User.findByIdAndUpdate(id, { hostStatus }, { new: true });
+
+    if (!result) throw new ApiError(404, "Failed to change host request status");
+
+    return result;
+
+}
+
 export const UserService = {
     createUserToDB,
     getUserProfileFromDB,
@@ -137,4 +165,7 @@ export const UserService = {
     createAdminToDB,
     switchProfileToDB,
     createHostRequestToDB,
+    getAllHostRequestsFromDB,
+    getHostRequestByIdFromDB,
+    changeHostRequestStatusByIdFromDB,
 };

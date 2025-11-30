@@ -99,9 +99,16 @@ const userSchema = new Schema<IUser, UserModal>(
         },
     },
     {
-        timestamps: true
+        timestamps: true,
+        versionKey: false,
+        toJSON: { virtuals: true },
+        toObject: { virtuals: true }
     }
 )
+
+userSchema.virtual("fullName").get(function (this) {
+    return `${this.firstName} ${this.lastName}`
+})
 
 
 //exist user check
@@ -128,7 +135,7 @@ userSchema.statics.isMatchPassword = async (password: string, hashPassword: stri
 
 //check user
 userSchema.pre('save', async function (next) {
-   
+
     if (this.isNew) {
         const isExist = await User.findOne({ phone: this.phone });
         if (isExist) {
@@ -140,7 +147,7 @@ userSchema.pre('save', async function (next) {
             this.password = await bcrypt.hash(this.password, Number(config.bcrypt_salt_rounds));
         }
     } else {
-       
+
         if (this.isModified('password') && this.password) {
             this.password = await bcrypt.hash(this.password, Number(config.bcrypt_salt_rounds));
         }

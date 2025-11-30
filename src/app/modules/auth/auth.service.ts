@@ -33,12 +33,14 @@ const loginUserFromDB = async (payload: ILoginData) => {
         config.jwt.jwt_expire_in as string,
     );
 
-    const result = {
-        token: accessToken,
-        user,
-    }
+    const userObj = user.toObject();
+    delete userObj.password;
 
-    return result;
+    return {
+        token: accessToken,
+        user: userObj
+    };
+
 };
 
 
@@ -76,127 +78,127 @@ const forgetPasswordToDB = async (phone: string, countryCode: string) => {
 // };
 
 const verifyPhoneToDB = async (payload: { phone: string; code: string; countryCode: string }) => {
-  const { phone, code, countryCode } = payload;
+    const { phone, code, countryCode } = payload;
 
-  // check user exist
-  const isExistUser = await User.findOne({ phone, countryCode }).select("+authentication");
-  if (!isExistUser) {
-    throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
-  }
+    // check user exist
+    const isExistUser = await User.findOne({ phone, countryCode }).select("+authentication");
+    if (!isExistUser) {
+        throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
+    }
 
-  // OTP validation
-  const isValid = await twilioService.verifyOTP(phone, code, countryCode);
-  if (!isValid) {
-    throw new ApiError(StatusCodes.BAD_REQUEST, "Invalid or expired OTP");
-  }
+    // OTP validation
+    const isValid = await twilioService.verifyOTP(phone, code, countryCode);
+    if (!isValid) {
+        throw new ApiError(StatusCodes.BAD_REQUEST, "Invalid or expired OTP");
+    }
 
-  let message;
-  let data;
+    let message;
+    let data;
 
-  // CASE–1: First time verify (like email verified = true)
-  if (!isExistUser.verified) {
-    await User.findOneAndUpdate(
-      { _id: isExistUser._id },
-      {
-        verified: true,
-        authentication: { oneTimeCode: null, expireAt: null, isResetPassword: false }
-      }
-    );
+    // CASE–1: First time verify (like email verified = true)
+    if (!isExistUser.verified) {
+        await User.findOneAndUpdate(
+            { _id: isExistUser._id },
+            {
+                verified: true,
+                authentication: { oneTimeCode: null, expireAt: null, isResetPassword: false }
+            }
+        );
 
-    message = "Your account is verified successfully";
-  } 
-  // CASE–2: Forgot password flow (same as old email logic)
-  else {
-    await User.findOneAndUpdate(
-      { _id: isExistUser._id },
-      {
-        authentication: {
-          isResetPassword: true,
-          oneTimeCode: null,
-          expireAt: null,
-        },
-      }
-    );
+        message = "Your account is verified successfully";
+    }
+    // CASE–2: Forgot password flow (same as old email logic)
+    else {
+        await User.findOneAndUpdate(
+            { _id: isExistUser._id },
+            {
+                authentication: {
+                    isResetPassword: true,
+                    oneTimeCode: null,
+                    expireAt: null,
+                },
+            }
+        );
 
-    // token generate exactly same way
-    const createToken = cryptoToken();
+        // token generate exactly same way
+        const createToken = cryptoToken();
 
-    // save token in ResetToken Collection
-    await ResetToken.create({
-      user: isExistUser._id,
-      token: createToken,
-      expireAt: new Date(Date.now() + 5 * 60000), // 5 min
-    });
+        // save token in ResetToken Collection
+        await ResetToken.create({
+            user: isExistUser._id,
+            token: createToken,
+            expireAt: new Date(Date.now() + 5 * 60000), // 5 min
+        });
 
-    message = "Verification successful: Use this token to reset your password";
-    data = createToken;
-  }
+        message = "Verification successful: Use this token to reset your password";
+        data = createToken;
+    }
 
-  return { data, message };
+    return { data, message };
 };
 
 
 
 //reset password - ADD countryCode parameter
 const resetPasswordToDB = async (
-  token: string,
-  payload: { newPassword: string; confirmPassword: string }
+    token: string,
+    payload: { newPassword: string; confirmPassword: string }
 ) => {
-  const { newPassword, confirmPassword } = payload;
+    const { newPassword, confirmPassword } = payload;
 
-  // check matching
-  if (newPassword !== confirmPassword) {
-    throw new ApiError(
-      StatusCodes.BAD_REQUEST,
-      "New password and Confirm password doesn't match!"
+    // check matching
+    if (newPassword !== confirmPassword) {
+        throw new ApiError(
+            StatusCodes.BAD_REQUEST,
+            "New password and Confirm password doesn't match!"
+        );
+    }
+
+    // token exist?
+    const isExistToken = await ResetToken.isExistToken(token);
+    if (!isExistToken) {
+        throw new ApiError(StatusCodes.UNAUTHORIZED, "You are not authorized");
+    }
+
+    // user permission
+    const isExistUser = await User.findById(isExistToken.user).select(
+        "+authentication"
     );
-  }
 
-  // token exist?
-  const isExistToken = await ResetToken.isExistToken(token);
-  if (!isExistToken) {
-    throw new ApiError(StatusCodes.UNAUTHORIZED, "You are not authorized");
-  }
+    if (!isExistUser?.authentication?.isResetPassword) {
+        throw new ApiError(
+            StatusCodes.UNAUTHORIZED,
+            "You don't have permission to change the password. Please try 'Forgot Password' again."
+        );
+    }
 
-  // user permission
-  const isExistUser = await User.findById(isExistToken.user).select(
-    "+authentication"
-  );
+    // token validity
+    const isValid = await ResetToken.isExpireToken(token);
+    if (!isValid) {
+        throw new ApiError(
+            StatusCodes.BAD_REQUEST,
+            "Token expired, please try again."
+        );
+    }
 
-  if (!isExistUser?.authentication?.isResetPassword) {
-    throw new ApiError(
-      StatusCodes.UNAUTHORIZED,
-      "You don't have permission to change the password. Please try 'Forgot Password' again."
+    // hash password
+    const hashPassword = await bcrypt.hash(
+        newPassword,
+        Number(config.bcrypt_salt_rounds)
     );
-  }
 
-  // token validity
-  const isValid = await ResetToken.isExpireToken(token);
-  if (!isValid) {
-    throw new ApiError(
-      StatusCodes.BAD_REQUEST,
-      "Token expired, please try again."
+    const updateData = {
+        password: hashPassword,
+        authentication: { isResetPassword: false },
+    };
+
+    const result = await User.findOneAndUpdate(
+        { _id: isExistToken.user },
+        updateData,
+        { new: true }
     );
-  }
 
-  // hash password
-  const hashPassword = await bcrypt.hash(
-    newPassword,
-    Number(config.bcrypt_salt_rounds)
-  );
-
-  const updateData = {
-    password: hashPassword,
-    authentication: { isResetPassword: false },
-  };
-
-  const result = await User.findOneAndUpdate(
-    { _id: isExistToken.user },
-    updateData,
-    { new: true }
-  );
-
-  return result;
+    return result;
 };
 
 
