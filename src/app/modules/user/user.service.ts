@@ -1,4 +1,4 @@
-import { HOST_STATUS, USER_ROLES } from "../../../enums/user";
+import { HOST_STATUS, STATUS, USER_ROLES } from "../../../enums/user";
 import { IHostRequestInput, IUser } from "./user.interface";
 import { JwtPayload, Secret } from "jsonwebtoken";
 import { User } from "./user.model";
@@ -204,6 +204,92 @@ const deleteHostRequestByIdFromDB = async (id: string) => {
 
 }
 
+const getAllUsersFromDB = async (query: any) => {
+
+
+    const baseQuery = User.find({ hostStatus: HOST_STATUS.NONE, role: USER_ROLES.USER });
+
+    const queryBuilder = new QueryBuilder(baseQuery, query)
+        .search(["firstName", "lastName", "fullName", "email", "phone"])
+        .sort()
+        .fields()
+        .filter()
+        .paginate();
+
+    const users = await queryBuilder.modelQuery;
+
+    const meta = await queryBuilder.countTotal();
+
+    if (!users) throw new ApiError(404, "No users are found in the database");
+
+    return {
+        data: users,
+        meta,
+    }
+
+}
+
+const getUserByIdFromDB = async (id: string) => {
+    const result = await User.findOne({ _id: id, hostStatus: HOST_STATUS.NONE, role: USER_ROLES.USER });
+
+    if (!result) throw new ApiError(404, "No user is found in the database by this ID");
+
+    return result;
+
+}
+
+const updateUserStatusByIdToDB = async (
+    id: string,
+    status: STATUS.ACTIVE | STATUS.INACTIVE
+) => {
+    if (![STATUS.ACTIVE, STATUS.INACTIVE].includes(status)) {
+        throw new ApiError(400, "Status must be either 'ACTIVE' or 'INACTIVE'");
+    }
+
+    const user = await User.findOne({ _id: id, role: USER_ROLES.USER, hostStatus: HOST_STATUS.NONE });
+    if (!user) {
+        throw new ApiError(404, "No user is found by this user ID");
+    }
+
+    const result = await User.findByIdAndUpdate(id, { status }, { new: true });
+    if (!result) {
+        throw new ApiError(400, "Failed to change status by this user ID");
+    }
+
+    return result;
+};
+
+
+const deleteUserByIdFromD = async (id: string) => {
+    const user = await User.findOne({ _id: id, hostStatus: HOST_STATUS.NONE, role: USER_ROLES.USER });
+    
+    if (!user) {
+        throw new ApiError(404, "User doest not exist in the database");
+    }
+
+    const result = await User.findByIdAndDelete(id);
+
+    if (!result) {
+        throw new ApiError(400, "Failed to delete user by this ID");
+    }
+
+    return result;
+};
+
+const deleteProfileFromDB = async (id: string) => {
+    const isExistUser = await User.isExistUserById(id);
+    if (!isExistUser) {
+        throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
+    }
+
+    const result = await User.findByIdAndDelete(id);
+
+    if (!result) {
+        throw new ApiError(400, "Failed to delete this user");
+    }
+    return result;
+};
+
 export const UserService = {
     createUserToDB,
     getUserProfileFromDB,
@@ -215,4 +301,9 @@ export const UserService = {
     getHostRequestByIdFromDB,
     changeHostRequestStatusByIdFromDB,
     deleteHostRequestByIdFromDB,
+    getAllUsersFromDB,
+    getUserByIdFromDB,
+    updateUserStatusByIdToDB,
+    deleteUserByIdFromD,
+    deleteProfileFromDB,
 };
