@@ -41,6 +41,30 @@ const createAdmin = catchAsync(
   }
 );
 
+
+const getAdmin = catchAsync(async (req: Request, res: Response) => {
+     const result = await UserService.getAdminFromDB(req.query);
+     sendResponse(res, {
+          statusCode: StatusCodes.OK,
+          success: true,
+          message: 'Admin retrieved Successfully',
+          data: result,
+     });
+});
+
+const deleteAdmin = catchAsync(async (req: Request, res: Response) => {
+     const payload = req.params.id;
+     const result = await UserService.deleteAdminFromDB(payload);
+
+     sendResponse(res, {
+          statusCode: StatusCodes.OK,
+          success: true,
+          message: 'Admin Deleted Successfully',
+          data: result,
+     });
+});
+
+
 // retrieved user profile
 const getUserProfile = catchAsync(async (req: Request, res: Response) => {
   const user = req.user;
@@ -231,6 +255,8 @@ const deleteProfile = catchAsync(async (req, res) => {
 export const UserController = {
   createUser,
   createAdmin,
+  getAdmin,
+  deleteAdmin,
   getUserProfile,
   updateProfile,
   switchProfile,

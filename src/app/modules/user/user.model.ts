@@ -10,11 +10,11 @@ const userSchema = new Schema<IUser, UserModal>(
     {
         firstName: {
             type: String,
-            required: true,
+            // required: true,
         },
         lastName: {
             type: String,
-            required: true,
+            // required: true,
         },
         role: {
             type: String,
@@ -28,17 +28,17 @@ const userSchema = new Schema<IUser, UserModal>(
         },
         phone: {
             type: String,
-            required: true,
-            unique: true,
+            // required: true,
+            // unique: true,
         },
         countryCode: {
             type: String,
-            required: true,
+            // required: true,
         },
         email: {
             type: String,
             required: false,
-            unique: true,
+            unique: false,
             lowercase: true,
         },
         profileImage: {
@@ -69,7 +69,7 @@ const userSchema = new Schema<IUser, UserModal>(
         },
         dateOfBirth: {
             type: String,
-            required: true,
+            // required: true,
         },
         gender: {
             type: String,

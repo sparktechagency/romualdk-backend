@@ -10,8 +10,8 @@ import { jwtHelper } from "../../../helpers/jwtHelper";
 import config from "../../../config";
 import QueryBuilder from "../../builder/queryBuilder";
 
-const createAdminToDB = async (payload: any): Promise<IUser> => {
 
+const createAdminToDB = async (payload: any): Promise<IUser> => {
     // check admin is exist or not;
     const isExistAdmin = await User.findOne({ email: payload.email });
     if (isExistAdmin) {
@@ -33,7 +33,57 @@ const createAdminToDB = async (payload: any): Promise<IUser> => {
     return createAdmin;
 };
 
+const getAdminFromDB = async (query: any) => {
+
+    const baseQuery = User.find({ role: { $in: [USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN] } }).select('firstName lastName email role profileImage createdAt updatedAt');
+
+    const queryBuilder = new QueryBuilder<IUser>(baseQuery, query)
+        .search(['firstName', "lastName", "fullName", 'email'])
+        .sort()
+        .fields()
+        .paginate();
+
+    const admins = await queryBuilder.modelQuery;
+
+    const meta = await queryBuilder.countTotal();
+
+    return {
+        data: admins,
+        meta,
+    };
+};
+
+const deleteAdminFromDB = async (id: any) => {
+    const isExistAdmin = await User.findByIdAndDelete(id);
+    
+    if (!isExistAdmin) {
+        throw new ApiError(StatusCodes.BAD_REQUEST, 'Failed to delete Admin');
+    }
+
+    return isExistAdmin;
+};
+
 const createUserToDB = async (payload: Partial<IUser>) => {
+
+    const requiredFields = [
+        "firstName",
+        "lastName",
+        "countryCode",
+        "dateOfBirth",
+        "phone",
+        "password",
+    ];
+
+    const missingFields = requiredFields.filter(
+        (field) => !payload[field as keyof IUser]
+    );
+
+    if (missingFields.length > 0) {
+        throw new ApiError(
+            400,
+            `Missing required fields: ${missingFields.join(", ")}`
+        );
+    }
 
     const createUser = await User.create(payload);
     console.log(payload, "Payload")
@@ -135,6 +185,7 @@ const createHostRequestToDB = async (userId: string, payload: IHostRequestInput)
 }
 
 const getAllHostRequestsFromDB = async (query: any) => {
+
     const baseQuery = User.find({ hostStatus: { $in: [HOST_STATUS.PENDING, HOST_STATUS.APPROVED, HOST_STATUS.REJECTED] } });
 
     const queryBuilder = new QueryBuilder(baseQuery, query)
@@ -291,6 +342,8 @@ const deleteProfileFromDB = async (id: string) => {
 
 export const UserService = {
     createUserToDB,
+    getAdminFromDB,
+    deleteAdminFromDB,
     getUserProfileFromDB,
     updateProfileToDB,
     createAdminToDB,

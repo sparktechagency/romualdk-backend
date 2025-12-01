@@ -22,6 +22,13 @@ router.post(
     UserController.createAdmin
 );
 
+router.get("/admins", auth(USER_ROLES.SUPER_ADMIN), UserController.getAdmin)
+
+router.delete("/admins/:id", auth(USER_ROLES.SUPER_ADMIN), UserController.deleteAdmin)
+
+router.route("/host-request")
+    .get(auth(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN), UserController.getAllHostRequests)
+
 router.post("/become-host",
     auth(USER_ROLES.USER, USER_ROLES.HOST),
     fileUploadHandler(),
@@ -54,8 +61,6 @@ router.patch("/status/:id", auth(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN), User
 
 router.patch("/switch-profile", auth(USER_ROLES.USER, USER_ROLES.HOST), UserController.switchProfile)
 
-router.route("/host-request")
-    .get(auth(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN), UserController.getAllHostRequests)
 
 router.route("/host-request/:id")
     .get(auth(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN), UserController.getHostRequestById)
