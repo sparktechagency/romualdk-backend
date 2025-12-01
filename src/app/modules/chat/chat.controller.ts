@@ -1,38 +1,85 @@
-import { Request, Response } from "express";
 import catchAsync from "../../../shared/catchAsync";
 import sendResponse from "../../../shared/sendResponse";
-import { StatusCodes } from "http-status-codes";
 import { ChatService } from "./chat.service";
 
-const createChat = catchAsync(async (req: Request, res: Response) => {
-    const user = req.user;
-    const otherUser = req.params.id;
+const createChat = catchAsync(async (req, res) => {
+  const participant = req.body.participant;
+  const { id: userId }: any = req.user;
+  const participants = [userId, participant];
+  const result = await ChatService.createChatIntoDB(participants);
 
-    const participants = [user?.id, otherUser];
-    const chat = await ChatService.createChatToDB(participants);
-
-    sendResponse(res, {
-        statusCode: StatusCodes.OK,
-        success: true,
-        message: 'Create Chat Successfully',
-        data: chat,
-    });
-})
-
-const getChat = catchAsync(async (req: Request, res: Response) => {
-    const user = req.user;
-    const search = req.query.search as string;
-    const chatList = await ChatService.getChatFromDB(user, search);
-  
-    sendResponse(res, {
-        statusCode: StatusCodes.OK,
-        success: true,
-        message: 'Chat Retrieve Successfully',
-        data: chatList
-    });
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Chat created successfully",
+    data: result,
+  });
 });
 
-export const ChatController = { 
-    createChat, 
-    getChat
+const markChatAsRead = catchAsync(async (req, res) => {
+  const { id } = req.params;
+  const user: any = req?.user;
+
+  const result = await ChatService.markChatAsRead(user.id, id);
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Chat marked as read",
+    data: result,
+  });
+});
+
+const getChats = catchAsync(async (req, res) => {
+  const { id: userId }: any = req.user;
+  const result = await ChatService.getAllChatsFromDB(userId, req.query);
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Chats retrieved successfully",
+    data: {
+      chats: result.data,
+      unreadChatsCount: result.unreadChatsCount,
+      totalUnreadMessages: result.totalUnreadMessages,
+    },
+    meta: result.meta, 
+  });
+});
+
+const getChatImages = catchAsync(async (req, res) => {
+  const { id: userId } = req.user as any;
+  const { chatId } = req.params;
+
+  const result = await ChatService.getChatImagesFromDB(chatId, userId);
+
+  sendResponse(res, {
+    success: true,
+    statusCode: 200,
+    message: "Chat images retrieved successfully",
+    data: result,
+  });
+});
+
+const deleteChat = catchAsync(async (req, res) => {
+  const { id: userId }: any = req.user;
+  const { chatId } = req.params;
+  const result = await ChatService.softDeleteChatForUser(chatId, userId);
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Chat deleted successfully",
+    data: result,
+  });
+});
+
+
+
+
+
+export const ChatController = {
+  createChat,
+  getChats,
+  markChatAsRead,
+  deleteChat,
+  getChatImages,
 };

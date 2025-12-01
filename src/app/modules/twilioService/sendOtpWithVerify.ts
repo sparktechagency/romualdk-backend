@@ -16,11 +16,11 @@ class TwilioService {
         const accountSid = config.twilio.accountSid;
         const authToken = config.twilio.authToken;
 
-        console.log(accountSid, authToken, "Token");
+      
 
         // Initialize Twilio client
         this.client = twilio(accountSid, authToken);
-        console.log(this.client, "Client");
+       
 
         // Configure country codes
         this.phoneConfig = {

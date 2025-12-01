@@ -20,6 +20,10 @@ export type IUser = {
     gender?: GENDER;
     verified: boolean;
     status: STATUS;
+    location?: {
+        type: "Point";
+        coordinates: [number, number]; // [longitude, latitude],
+    };
     authentication?: {
         isResetPassword: boolean;
         oneTimeCode: number;
@@ -28,10 +32,10 @@ export type IUser = {
 };
 
 export interface IHostRequestInput {
-  nidFrontPic: string;
-  nidBackPic: string;
-  drivingLicenseFrontPic?: string;
-  drivingLicenseBackPic?: string;
+    nidFrontPic: string;
+    nidBackPic: string;
+    drivingLicenseFrontPic?: string;
+    drivingLicenseBackPic?: string;
 }
 
 export type UserModal = {

@@ -41,7 +41,7 @@ router.post(
 // Verify Phone OTP
 router.post(
     '/verify-phone',
-    validateRequest(AuthValidation.createVerifyPhoneZodSchema), 
+    validateRequest(AuthValidation.createVerifyPhoneZodSchema),
     AuthController.verifyPhone
 );
 
@@ -55,7 +55,7 @@ router.post(
 // Change Password
 router.post(
     '/change-password',
-    auth(USER_ROLES.ADMIN, USER_ROLES.USER),
+    auth(USER_ROLES.ADMIN, USER_ROLES.USER, USER_ROLES.HOST),
     validateRequest(AuthValidation.createChangePasswordZodSchema),
     AuthController.changePassword
 );

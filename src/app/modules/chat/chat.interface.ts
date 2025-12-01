@@ -1,8 +1,12 @@
-import { Model, Types } from 'mongoose';
+import { Types } from "mongoose";
 
 export type IChat = {
-    participants: [Types.ObjectId];
-    status: Boolean;
-}
-
-export type ChatModel = Model<IChat, Record<string, unknown>>;
+  participants: Types.ObjectId[];
+  lastMessage: Types.ObjectId;
+  read: boolean;
+  readBy: Types.ObjectId[];
+  deletedBy: [Types.ObjectId];
+  isDeleted: boolean;
+  status: "ACTIVE" | "DELETED";
+  pinnedMessages: Types.ObjectId[]; // Pinned message IDs
+};

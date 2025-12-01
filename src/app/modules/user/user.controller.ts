@@ -41,6 +41,30 @@ const createAdmin = catchAsync(
   }
 );
 
+
+const getAdmin = catchAsync(async (req: Request, res: Response) => {
+     const result = await UserService.getAdminFromDB(req.query);
+     sendResponse(res, {
+          statusCode: StatusCodes.OK,
+          success: true,
+          message: 'Admin retrieved Successfully',
+          data: result,
+     });
+});
+
+const deleteAdmin = catchAsync(async (req: Request, res: Response) => {
+     const payload = req.params.id;
+     const result = await UserService.deleteAdminFromDB(payload);
+
+     sendResponse(res, {
+          statusCode: StatusCodes.OK,
+          success: true,
+          message: 'Admin Deleted Successfully',
+          data: result,
+     });
+});
+
+
 // retrieved user profile
 const getUserProfile = catchAsync(async (req: Request, res: Response) => {
   const user = req.user;
@@ -100,15 +124,150 @@ const createHostRequest = catchAsync(async (req, res) => {
     success: true,
     statusCode: 200,
     message: "Successfully host requst send",
+    data: result
+  })
+})
+
+const getAllHostRequests = catchAsync(async (req, res) => {
+
+  const result = await UserService.getAllHostRequestsFromDB(req.query);
+
+  sendResponse(res, {
+    success: true,
+    statusCode: 200,
+    message: "Successfully retrieved are host requests data",
     data: result,
   })
+
+})
+
+const getHostRequestById = catchAsync(async (req, res) => {
+  const { id } = req.params;
+  const result = await UserService.getHostRequestByIdFromDB(id);
+  sendResponse(res, {
+    success: true,
+    statusCode: 200,
+    message: "Successfully retrieve host by ID",
+    data: result,
+  })
+})
+
+const changeHostRequestStatusById = catchAsync(async (req, res) => {
+  const { id } = req.params;
+  const { hostStatus } = req.body;
+
+  const result = await UserService.changeHostRequestStatusByIdFromDB(id, hostStatus);
+
+  sendResponse(res, {
+    success: true,
+    statusCode: 200,
+    message: "Successfully change host status by ID",
+    data: result,
+  })
+
+})
+
+const deleteHostRequestById = catchAsync(async (req, res) => {
+
+  const { id } = req.params;
+  const result = await UserService.deleteHostRequestByIdFromDB(id);
+
+  sendResponse(res, {
+    success: true,
+    statusCode: 200,
+    message: "Successfully delete host request by this ID",
+    data: result
+  })
+
+})
+
+const getAllUsers = catchAsync(async (req, res) => {
+
+  const result = await UserService.getAllUsersFromDB(req.query);
+
+  sendResponse(res, {
+    success: true,
+    statusCode: 200,
+    message: "Successfully retrieved are users data",
+    data: result,
+  })
+
+})
+
+const getUserById = catchAsync(async (req, res) => {
+
+  const { id } = req.params;
+  const result = await UserService.getUserByIdFromDB(id);
+
+  sendResponse(res, {
+    success: true,
+    statusCode: 200,
+    message: "Successfully retrieve user by ID",
+    data: result,
+  })
+
+})
+
+const updateUserStatusById = catchAsync(async (req, res) => {
+  const { id } = req.params;
+
+  const { status } = req.body;
+
+  const result = await UserService.updateUserStatusByIdToDB(id, status);
+
+  sendResponse(res, {
+    success: true,
+    statusCode: 200,
+    message: "Status updated successfully",
+    data: result,
+  })
+
+})
+
+const deleteUserById = catchAsync(async (req, res) => {
+  const { id } = req.params;
+
+  const result = await UserService.deleteUserByIdFromD(id);
+
+  sendResponse(res, {
+    success: true,
+    statusCode: 200,
+    message: "User is deleted successfully",
+    data: result,
+  })
+
+})
+
+const deleteProfile = catchAsync(async (req, res) => {
+  const { id: userId } = req.user;
+
+  const result = await UserService.deleteProfileFromDB(userId);
+
+  sendResponse(res, {
+    success: true,
+    statusCode: 200,
+    message: "Successfully delete your account",
+    data: result,
+  })
+
 })
 
 export const UserController = {
   createUser,
   createAdmin,
+  getAdmin,
+  deleteAdmin,
   getUserProfile,
   updateProfile,
   switchProfile,
   createHostRequest,
+  getAllHostRequests,
+  getHostRequestById,
+  changeHostRequestStatusById,
+  deleteHostRequestById,
+  getAllUsers,
+  getUserById,
+  updateUserStatusById,
+  deleteUserById,
+  deleteProfile,
 };

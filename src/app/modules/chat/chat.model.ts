@@ -1,19 +1,24 @@
-import { model, Schema } from 'mongoose';
-import { ChatModel, IChat } from './chat.interface';
+import mongoose, { Schema } from "mongoose";
+import { IChat } from "./chat.interface";
 
-const chatSchema = new Schema<IChat, ChatModel>(
+const chatSchema = new Schema<IChat>(
     {
-        participants: [
-            {
-                type: Schema.Types.ObjectId,
-                ref: 'User'
-            }
-        ],
-        status: {
+        participants: [{ type: Schema.Types.ObjectId, ref: "User" }],
+        lastMessage: { type: Schema.Types.ObjectId, ref: "Message" },
+        read: {
             type: Boolean,
-            default: true
-        }
-    }
-)
+            required: false,
+        },
+        readBy: [{ type: Schema.Types.ObjectId, ref: "User" }],
+        deletedBy: [{ type: Schema.Types.ObjectId, ref: "User" }],
+        isDeleted: { type: Boolean, default: false },
+        status: { type: String, enum: ["ACTIVE", "DELETED"], default: "ACTIVE" },
+        pinnedMessages: [{ type: Schema.Types.ObjectId, ref: "Message" }],
+    },
+    {
+        timestamps: true,
+        versionKey: false,
+    },
+);
 
-export const Chat = model<IChat, ChatModel>('Chat', chatSchema);
+export const Chat = mongoose.model<IChat>("Chat", chatSchema);

@@ -14,7 +14,8 @@ const createVerifyPhoneZodSchema = z.object({
 
 const createLoginZodSchema = z.object({
     body: z.object({
-        phone: z.string({ required_error: 'Phone is required' }),
+        email: z.string().optional(),
+        phone: z.string().optional(),
         password: z.string({ required_error: 'Password is required' })
     })
 });

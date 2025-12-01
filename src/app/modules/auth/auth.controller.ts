@@ -7,7 +7,7 @@ import { AuthService } from './auth.service';
 
 // verify Phone OTP
 const verifyPhone = catchAsync(async (req: Request, res: Response) => {
-     const { ...verifyData } = req.body;
+    const { ...verifyData } = req.body;
 
     const result = await AuthService.verifyPhoneToDB(verifyData);
 
@@ -22,9 +22,9 @@ const verifyPhone = catchAsync(async (req: Request, res: Response) => {
 
 // login User
 const loginUser = catchAsync(async (req: Request, res: Response) => {
-    const { phone, password } = req.body;
+    const data = req.body;
 
-    const result = await AuthService.loginUserFromDB({ phone, password });
+    const result = await AuthService.loginUserFromDB(data);
 
     sendResponse(res, {
         success: true,
@@ -52,16 +52,16 @@ const forgetPassword = catchAsync(async (req: Request, res: Response) => {
 
 // reset Password
 const resetPassword = catchAsync(async (req, res) => {
-  const token: any = req.headers.resettoken;
-  const { ...resetData } = req.body;
-  const result = await AuthService.resetPasswordToDB(token!, resetData);
+    const token: any = req.headers.resettoken;
+    const { ...resetData } = req.body;
+    const result = await AuthService.resetPasswordToDB(token!, resetData);
 
-  sendResponse(res, {
-    success: true,
-    statusCode: StatusCodes.OK,
-    message: "Your password has been successfully reset.",
-    data: result,
-  });
+    sendResponse(res, {
+        success: true,
+        statusCode: StatusCodes.OK,
+        message: "Your password has been successfully reset.",
+        data: result,
+    });
 });
 
 

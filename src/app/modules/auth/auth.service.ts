@@ -14,23 +14,69 @@ import cryptoToken from '../../../util/cryptoToken';
 import { ResetToken } from '../resetToken/resetToken.model';
 
 //login
+// const loginUserFromDB = async (payload: ILoginData) => {
+
+//     const { phone, password } = payload;
+//     const user: any = await User.findOne({ phone }).select('+password');
+
+//     if (!user) throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
+
+//     if (!user.verified)
+//         throw new ApiError(StatusCodes.BAD_REQUEST, "Please verify your phone number first");
+
+//     if (!(await User.isMatchPassword(password, user.password)))
+//         throw new ApiError(StatusCodes.BAD_REQUEST, "Password incorrect");
+
+//     const accessToken = jwtHelper.createToken(
+//         { id: user._id, role: user.role },
+//         config.jwt.jwt_secret as Secret,
+//         config.jwt.jwt_expire_in as string,
+//     );
+
+//     const userObj = user.toObject();
+//     delete userObj.password;
+
+//     return {
+//         token: accessToken,
+//         user: userObj
+//     };
+
+// };
+
 const loginUserFromDB = async (payload: ILoginData) => {
+    const { email, phone, password } = payload;
 
-    const { phone, password } = payload;
-    const user: any = await User.findOne({ phone }).select('+password');
+    console.log(email,password)
 
-    if (!user) throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
+    // Either phone or email must be provided
+    if (!phone && !email) {
+        throw new ApiError(StatusCodes.BAD_REQUEST, "Please provide phone or email");
+    }
 
-    if (!user.verified)
+    // Build dynamic query
+    const query: any = {};
+    if (phone) query.phone = phone;
+    if (email) query.email = email;
+
+    const user: any = await User.findOne(query).select("+password");
+
+    if (!user) {
+        throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
+    }
+
+    if (!user.verified) {
         throw new ApiError(StatusCodes.BAD_REQUEST, "Please verify your phone number first");
+    }
 
-    if (!(await User.isMatchPassword(password, user.password)))
+    const isPasswordCorrect = await User.isMatchPassword(password, user.password);
+    if (!isPasswordCorrect) {
         throw new ApiError(StatusCodes.BAD_REQUEST, "Password incorrect");
+    }
 
     const accessToken = jwtHelper.createToken(
         { id: user._id, role: user.role },
         config.jwt.jwt_secret as Secret,
-        config.jwt.jwt_expire_in as string,
+        config.jwt.jwt_expire_in as string
     );
 
     const userObj = user.toObject();
@@ -38,9 +84,8 @@ const loginUserFromDB = async (payload: ILoginData) => {
 
     return {
         token: accessToken,
-        user: userObj
+        user: userObj,
     };
-
 };
 
 

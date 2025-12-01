@@ -1,5 +1,5 @@
 import { model, Schema } from "mongoose";
-import { GENDER, HOST_STATUS, USER_ROLES } from "../../../enums/user";
+import { GENDER, HOST_STATUS, STATUS, USER_ROLES } from "../../../enums/user";
 import { IUser, UserModal } from "./user.interface";
 import bcrypt from "bcrypt";
 import ApiError from "../../../errors/ApiErrors";
@@ -10,11 +10,11 @@ const userSchema = new Schema<IUser, UserModal>(
     {
         firstName: {
             type: String,
-            required: true,
+            // required: true,
         },
         lastName: {
             type: String,
-            required: true,
+            // required: true,
         },
         role: {
             type: String,
@@ -28,17 +28,17 @@ const userSchema = new Schema<IUser, UserModal>(
         },
         phone: {
             type: String,
-            required: true,
-            unique: true,
+            // required: true,
+            // unique: true,
         },
         countryCode: {
             type: String,
-            required: true,
+            // required: true,
         },
         email: {
             type: String,
             required: false,
-            unique: true,
+            unique: false,
             lowercase: true,
         },
         profileImage: {
@@ -47,11 +47,11 @@ const userSchema = new Schema<IUser, UserModal>(
         },
         nidFrontPic: {
             type: String,
-            required: true,
+            default: ""
         },
         nidBackPic: {
             type: String,
-            required: true,
+            default: ""
         },
         drivingLicenseFrontPic: {
             type: String,
@@ -69,16 +69,33 @@ const userSchema = new Schema<IUser, UserModal>(
         },
         dateOfBirth: {
             type: String,
-            required: true,
+            // required: true,
         },
         gender: {
             type: String,
             enum: Object.values(GENDER),
             required: false,
         },
+        status: {
+            type: String,
+            enum: Object.values(STATUS),
+            default: STATUS.ACTIVE,
+        },
         verified: {
             type: Boolean,
             default: false,
+        },
+        location: {
+            type: {
+                type: String,
+                enum: ["Point"],
+                default: "Point",
+            },
+            coordinates: {
+                type: [Number],
+                default: [0, 0],
+                index: "2dsphere",
+            },
         },
         authentication: {
             type: {
@@ -101,8 +118,8 @@ const userSchema = new Schema<IUser, UserModal>(
     {
         timestamps: true,
         versionKey: false,
-        toJSON: { virtuals: true },
-        toObject: { virtuals: true }
+        toJSON: { virtuals: true, transform: (_doc, ret) => { delete ret.id; return ret; } },
+        toObject: { virtuals: true, transform: (_doc, ret) => { delete ret.id; return ret; } },
     }
 )
 
