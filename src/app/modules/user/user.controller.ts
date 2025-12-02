@@ -43,25 +43,25 @@ const createAdmin = catchAsync(
 
 
 const getAdmin = catchAsync(async (req: Request, res: Response) => {
-     const result = await UserService.getAdminFromDB(req.query);
-     sendResponse(res, {
-          statusCode: StatusCodes.OK,
-          success: true,
-          message: 'Admin retrieved Successfully',
-          data: result,
-     });
+  const result = await UserService.getAdminFromDB(req.query);
+  sendResponse(res, {
+    statusCode: StatusCodes.OK,
+    success: true,
+    message: 'Admin retrieved Successfully',
+    data: result,
+  });
 });
 
 const deleteAdmin = catchAsync(async (req: Request, res: Response) => {
-     const payload = req.params.id;
-     const result = await UserService.deleteAdminFromDB(payload);
+  const payload = req.params.id;
+  const result = await UserService.deleteAdminFromDB(payload);
 
-     sendResponse(res, {
-          statusCode: StatusCodes.OK,
-          success: true,
-          message: 'Admin Deleted Successfully',
-          data: result,
-     });
+  sendResponse(res, {
+    statusCode: StatusCodes.OK,
+    success: true,
+    message: 'Admin Deleted Successfully',
+    data: result,
+  });
 });
 
 
@@ -252,6 +252,49 @@ const deleteProfile = catchAsync(async (req, res) => {
 
 })
 
+const getAllHosts = catchAsync(async (req, res) => {
+
+  const result = await UserService.getAllHostsFromDB(req.query);
+
+  sendResponse(res, {
+    success: true,
+    statusCode: 200,
+    message: "Successfully retrieved are hosts data",
+    data: result,
+  })
+
+})
+
+const getHostById = catchAsync(async (req, res) => {
+
+  const { id } = req.params;
+  const result = await UserService.getHostByIdFromDB(id);
+
+  sendResponse(res, {
+    success: true,
+    statusCode: 200,
+    message: "Successfully retrieve host by ID",
+    data: result,
+  })
+
+})
+
+const updateHostStatusById = catchAsync(async (req, res) => {
+  const { id } = req.params;
+
+  const { status } = req.body;
+
+  const result = await UserService.updateHostStatusByIdToDB(id, status);
+
+  sendResponse(res, {
+    success: true,
+    statusCode: 200,
+    message: "Host status updated successfully",
+    data: result,
+  })
+
+})
+
 export const UserController = {
   createUser,
   createAdmin,
@@ -270,4 +313,7 @@ export const UserController = {
   updateUserStatusById,
   deleteUserById,
   deleteProfile,
+  getAllHosts,
+  getHostById,
+  updateHostStatusById,
 };

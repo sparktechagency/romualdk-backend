@@ -1,38 +1,176 @@
-import { Schema, model} from "mongoose";
-import { ICar } from "./car.interface";
+import { model, Schema } from "mongoose";
+import { AVAILABLE_DAYS, FUEL_TYPE, ICar, TRANSMISSION } from "./car.interface";
 
-const carSchema = new Schema<ICar>(
+// Mongoose Schema
+const CarSchema = new Schema<ICar>(
     {
-        user: { type: Schema.Types.ObjectId, ref: "User", required: true },
-        brand: { type: String, required: true },
-        model: { type: String, required: true },
-        year: { type: Number, required: true },
-        transmission: { type: String, enum: ["MANUAL", "AUTOMATIC"], required: true },
-        fuelType: { type: String, enum: ["PETROL", "DIESEL", "ELECTRIC", "HYBRID"], required: true },
-        seatNumber: { type: Number, required: true, min: 1, max: 20 },
-        color: { type: String, required: true },
-        shortDescription: { type: String, required: true },
-        licensePlate: { type: String, required: true, unique: true },
-        carRegistration: {
-            frontImage: { type: String, required: true },
-            backImage: { type: String, required: true },
+        userId: {
+            type: Schema.Types.ObjectId,
+            ref: "User",
+            required: true,
+            index: true,
         },
-        photos: { type: [String], required: true },
-        dailyPrice: { type: Number, required: true },
-        minimumTripDuration: { type: Number, required: true },
-        withDriver: { type: Boolean, required: true },
-        city: { type: String, required: true },
+        brand: {
+            type: String,
+            required: true,
+            trim: true
+        },
+        model: {
+            type: String,
+            required: true,
+            trim: true
+        },
+        year: {
+            type: Number,
+            required: true,
+            min: 1900,
+            max: new Date().getFullYear() + 1
+        },
+        transmission: {
+            type: String,
+            enum: Object.values(TRANSMISSION),
+            required: true,
+        },
+        fuelType: {
+            type: String,
+            enum: Object.values(FUEL_TYPE),
+            required: true,
+        },
+        airConditioning: {
+            type: String,
+            required: true
+        },
+        gpsNavigation: {
+            type: String,
+            required: true
+        },
+        mileage: {
+            type: String,
+            required: true
+        },
+        bluetooth: {
+            type: String,
+            required: true
+        },
+        seatNumber: {
+            type: Number,
+            required: true,
+            min: 1,
+            max: 50
+        },
+        color: {
+            type: String,
+            required: true,
+            trim: true
+        },
+        about: {
+            type: String,
+            required: true
+        },
+        shortDescription: {
+            type: String,
+            required: true,
+            maxlength: 160
+        },
+        licensePlate: {
+            type: String,
+            required: true,
+            unique: true,
+            uppercase: true,
+            trim: true
+        },
+        carRegistration: {
+            frontImage: {
+                type: String,
+                required: true
+            },
+            backImage: {
+                type: String,
+                required: true
+            },
+        },
+        photos: [
+            {
+                type: String,
+                required: true
+            }
+        ], // array of image URLs
+        dailyPrice: {
+            type: Number,
+            required: true,
+            min: 0
+        },
+        hourlyPrice: {
+            type: Number,
+            min: 0
+        },
+        minimumTripDuration: {
+            type: Number,
+            required: true,
+            min: 1
+        }, // hours
+        withDriver: {
+            type: Boolean,
+            default: false
+        },
+        city: {
+            type: String,
+            required: true,
+            trim: true
+        },
         pickupPoint: {
             type: {
                 type: String,
                 enum: ["Point"],
-                required: true,
+                default: "Point"
             },
-            coordinates: { type: [Number], default: [0,0], required: true },
+            coordinates: {
+                type: [Number],
+                required: true
+            }, // [lng, lat]
         },
-        availableDays: { type: [String], enum: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"], required: true },
-        availableTimeSlots: { type: [String], required: true },
+        availableDays: [{
+            type: String,
+            enum: Object.values(AVAILABLE_DAYS),
+            required: true,
+        }],
+        defaultStartTime: {
+            type: String,
+            enum: [
+                "00:00", "01:00", "02:00", "03:00", "04:00", "05:00",
+                "06:00", "07:00", "08:00", "09:00", "10:00", "11:00",
+                "12:00", "13:00", "14:00", "15:00", "16:00", "17:00",
+                "18:00", "19:00", "20:00", "21:00", "22:00", "23:00"
+            ],
+            default: "09:00"
+        },
+        defaultEndTime: {
+            type: String,
+            enum: [
+                "00:00", "01:00", "02:00", "03:00", "04:00", "05:00",
+                "06:00", "07:00", "08:00", "09:00", "10:00", "11:00",
+                "12:00", "13:00", "14:00", "15:00", "16:00", "17:00",
+                "18:00", "19:00", "20:00", "21:00", "22:00", "23:00"
+            ],
+            default: "21:00"
+        },
+        isActive: {
+            type: Boolean,
+            default: true
+        },
     },
-    { timestamps: true }
+    {
+        timestamps: true, // adds createdAt & updatedAt automatically
+    }
 );
-export const Car = model<ICar>("Car", carSchema);
+
+// 2dsphere index for location-based queries (e.g., find cars near me)
+CarSchema.index({ pickupPoint: "2dsphere" });
+
+// Compound index for common queries
+CarSchema.index({ userId: 1, isActive: 1 });
+CarSchema.index({ city: 1, isActive: 1 });
+CarSchema.index({ licensePlate: 1 });
+
+// Model
+export const Car = model<ICar>("Car", CarSchema);
