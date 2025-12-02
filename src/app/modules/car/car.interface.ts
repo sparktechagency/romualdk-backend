@@ -38,8 +38,8 @@ export interface ICar {
   about: string;
   shortDescription: string;
   licensePlate: string;
-  carRegistrationPaperFrontPic:string;
-  carRegistrationPaperBackPic:string;
+  carRegistrationPaperFrontPic: string;
+  carRegistrationPaperBackPic: string;
   images: string[];
   dailyPrice: number;
   hourlyPrice?: number;
@@ -48,6 +48,7 @@ export interface ICar {
   city: string;
   pickupPoint: { type: "Point"; coordinates: [number, number] };
   availableDays: AVAILABLE_DAYS[];
+  facilities: string[];
   defaultStartTime?: string; // e.g., "09:00"
   defaultEndTime?: string;   // e.g., "21:00"
   isActive: boolean;
