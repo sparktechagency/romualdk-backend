@@ -40,7 +40,7 @@ export interface ICar {
   licensePlate: string;
   carRegistrationPaperFrontPic:string;
   carRegistrationPaperBackPic:string;
-  photos: string[];
+  images: string[];
   dailyPrice: number;
   hourlyPrice?: number;
   minimumTripDuration: number; // in hours
