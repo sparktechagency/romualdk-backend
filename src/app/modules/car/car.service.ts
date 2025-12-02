@@ -24,6 +24,16 @@ const createCarToDB = async (userId: string, payload: ICar) => {
 
 }
 
+const getAllCarsFromDB = async () => {
+    const result = await Car.find();
+    if (!result || result.length === 0) {
+        throw new ApiError(404, "No cars are found in the database")
+    };
+
+    return result;
+}
+
 export const CarServices = {
     createCarToDB,
+    getAllCarsFromDB,
 }
