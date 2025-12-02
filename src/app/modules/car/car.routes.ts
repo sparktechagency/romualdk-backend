@@ -1,0 +1,41 @@
+import express from "express";
+import auth from "../../middlewares/auth";
+import { USER_ROLES } from "../../../enums/user";
+import { CarControllers } from "./car.controller";
+import fileUploadHandler from "../../middlewares/fileUploaderHandler";
+import parseAllFilesData from "../../middlewares/parseAllFileData";
+
+const router = express.Router();
+
+
+router.route("/")
+    .post(
+        auth(USER_ROLES.HOST),
+        fileUploadHandler(),
+        parseAllFilesData(
+            { fieldName: "carRegistrationPaperFrontPic", forceSingle: true },
+            { fieldName: "carRegistrationPaperBackPic", forceSingle: true },
+            { fieldName: "images", forceMultiple: true },
+        ),
+        CarControllers.createCar)
+    .get(auth(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN), CarControllers.getAllCars)
+
+
+router.route("/:id")
+    .get(auth(USER_ROLES.ADMIN, USER_ROLES.HOST, USER_ROLES.SUPER_ADMIN, USER_ROLES.USER), CarControllers.getCarById)
+    .patch(
+        auth(USER_ROLES.HOST),
+        fileUploadHandler(),
+        parseAllFilesData(
+            { fieldName: "carRegistrationPaperFrontPic", forceSingle: true },
+            { fieldName: "carRegistrationPaperBackPic", forceSingle: true },
+            { fieldName: "images", forceMultiple: true },
+        ),
+        CarControllers.updateCarById
+    )
+    .delete(auth(USER_ROLES.HOST), CarControllers.deleteCarById)
+
+router.get("/my", auth(USER_ROLES.HOST), CarControllers.getOwnCars);
+
+
+export const CarRoutes = router;
