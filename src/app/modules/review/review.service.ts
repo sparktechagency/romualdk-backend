@@ -4,6 +4,7 @@ import { REVIEW_TYPE, TReview } from "./review.interface";
 
 import { User } from "../user/user.model";
 import ApiError from "../../../errors/ApiErrors";
+import { Car } from "../car/car.model";
 
 const createReviewToDB = async (payload: TReview, reviewerId: string) => {
     const { carId } = payload;
@@ -13,10 +14,10 @@ const createReviewToDB = async (payload: TReview, reviewerId: string) => {
     }
 
     // 1. Car exist করে কিনা + তার host কে?
-    const car = await Car.findById(carId).populate("hostId"); // hostId হল User _id
+    const car = await Car.findById(carId).populate("userId"); // hostId হল User _id
     if (!car) throw new ApiError(404, "Car not found");
 
-    const hostUserId = car.hostId.toString();
+    const hostUserId = car.userId.toString();
 
     // 2. নিজের গাড়িতে রিভিউ দেওয়া যাবে না
     if (hostUserId === reviewerId) {
@@ -26,7 +27,7 @@ const createReviewToDB = async (payload: TReview, reviewerId: string) => {
     // 3. Payload setup
     const reviewData: TReview = {
         carId: new Types.ObjectId(carId),
-        hostId: car.hostId, // User _id
+        hostId: car.userId, // User _id
         fromUserId: new Types.ObjectId(reviewerId),
         ratingValue: payload.ratingValue,
         feedback: payload.feedback?.trim(),
@@ -42,10 +43,10 @@ const createReviewToDB = async (payload: TReview, reviewerId: string) => {
     // 5. Create review
     const review = await Review.create(reviewData);
 
-    // Optional: Car এ averageRating আপডেট করো (after create)
-    await updateCarAverageRating(carId);
-    // Host (User) এর average rating আপডেট করো
-    await updateHostAverageRating(hostUserId);
+    // // Optional: Car এ averageRating আপডেট করো (after create)
+    // await updateCarAverageRating(carId);
+    // // Host (User) এর average rating আপডেট করো
+    // await updateHostAverageRating(hostUserId);
 
     return review;
 };
@@ -96,7 +97,7 @@ const updateCarAverageRating = async (carId: string | Types.ObjectId) => {
 
 const getReviewSummaryFromDB = async (targetId: string, type: REVIEW_TYPE.CAR | REVIEW_TYPE.HOST) => {
 
-    const objectId = Types.ObjectId.createFromHexString(targetId);
+    const objectId = new Types.ObjectId(targetId);
 
     if (!targetId || !type) {
         throw new ApiError(400, "targetId and type (CAR/HOST) are required");

@@ -185,7 +185,7 @@ const getAvailability = async (carId: string, dateString: string) => {
     return generateBlockedResponse(normalizedDate, "Blocked by host");
   }
 
-  // check if available days
+  // check if available
   const dayName = normalizedDate
     .toLocaleDateString("en-US", { weekday: "long" })
     .toUpperCase(); // "FRIDAY"
