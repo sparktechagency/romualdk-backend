@@ -43,8 +43,34 @@ const updateMediaById = catchAsync(async (req, res) => {
 
 })
 
+const updateMediaStatus = catchAsync(async (req, res) => {
+    const { id } = req.params;
+    const { status } = req.body;
+    const result = await MediaServices.updateMediaStatusByIdToDB(id, status);
+    sendResponse(res, {
+        success: true,
+        statusCode: 200,
+        message: "Media status updated successfully",
+        data: result,
+    });
+});
+
+const deleteMedia = catchAsync(async (req, res) => {
+    const { mediaId } = req.params;
+    const result = await MediaServices.deleteMediaByIdToDB(mediaId);
+
+    sendResponse(res, {
+        statusCode: 200,
+        success: true,
+        message: "Media deleted successfully",
+        data: result,
+    });
+});
+
 export const MediaControllers = {
     createMedia,
     getMediaByType,
     updateMediaById,
+    updateMediaStatus,
+    deleteMedia,
 }
