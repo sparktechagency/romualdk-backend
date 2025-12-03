@@ -27,6 +27,8 @@ router.get("/availability/:carId", CarControllers.getAvailability)
 
 router.patch("/blocked/:carId", auth(USER_ROLES.HOST), CarControllers.createCarBlockedDates);
 
+router.get("/verification", auth(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN), CarControllers.getAllCarsForVerifications)
+
 
 router.route("/:id")
     .get(auth(USER_ROLES.ADMIN, USER_ROLES.HOST, USER_ROLES.SUPER_ADMIN, USER_ROLES.USER), CarControllers.getCarById)

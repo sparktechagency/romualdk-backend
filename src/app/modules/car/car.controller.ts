@@ -45,6 +45,18 @@ const getOwnCars = catchAsync(async (req, res) => {
 
 })
 
+const getAllCarsForVerifications = catchAsync(async (req, res) => {
+    const result = await CarServices.getAllCarsForVerificationsFromDB();
+
+    sendResponse(res, {
+        success: true,
+        statusCode: 200,
+        message: "Car verifications data are retrieved successfully",
+        data: result,
+    })
+
+})
+
 const getCarById = catchAsync(async (req, res) => {
 
     const { id } = req.params;
@@ -153,4 +165,5 @@ export const CarControllers = {
     deleteCarById,
     getAvailability,
     createCarBlockedDates,
+    getAllCarsForVerifications,
 }

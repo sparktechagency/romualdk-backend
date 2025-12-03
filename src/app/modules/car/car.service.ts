@@ -6,158 +6,171 @@ import { AVAILABLE_DAYS, CAR_VERIFICATION_STATUS, IBlockedDate, ICar } from "./c
 import { Car } from "./car.model";
 
 const createCarToDB = async (userId: string, payload: ICar) => {
-    const user = await User.findOne({ _id: userId, hostStatus: HOST_STATUS.APPROVED, role: USER_ROLES.HOST });
+  const user = await User.findOne({ _id: userId, hostStatus: HOST_STATUS.APPROVED, role: USER_ROLES.HOST });
 
-    if (!user) {
-        throw new ApiError(400, "No user found by this Id")
-    };
+  if (!user) {
+    throw new ApiError(400, "No user found by this Id")
+  };
 
-    payload.userId = new Types.ObjectId(userId);
+  payload.userId = new Types.ObjectId(userId);
 
-    const result = await Car.create(payload);
+  const result = await Car.create(payload);
 
-    if (!result) {
-        throw new ApiError(400, "Failed to create a car")
-    };
+  if (!result) {
+    throw new ApiError(400, "Failed to create a car")
+  };
 
-    return result;
+  return result;
 
 }
 
+// for feed 
 const getAllCarsFromDB = async () => {
-    const result = await Car.find({ verificationStatus: CAR_VERIFICATION_STATUS.APPROVED });
+  const result = await Car.find({ verificationStatus: CAR_VERIFICATION_STATUS.APPROVED });
 
-    if (!result || result.length === 0) {
-        throw new ApiError(404, "No cars are found in the database")
-    };
+  if (!result || result.length === 0) {
+    throw new ApiError(404, "No cars are found in the database")
+  };
 
-    return result;
+  return result;
 }
 
+// for verifications, dashboard
+const getAllCarsForVerificationsFromDB = async () => {
+  const result = await Car.find({ verificationStatus: CAR_VERIFICATION_STATUS.PENDING || CAR_VERIFICATION_STATUS.REJECTED || CAR_VERIFICATION_STATUS.APPROVED });
+
+  if (!result || result.length === 0) {
+    throw new ApiError(404, "No cars are found in the database")
+  };
+
+  return result;
+}
+
+// for host role
 const getOwnCarsFromDB = async (userId: string) => {
-    const user = await User.findOne({ _id: userId, role: USER_ROLES.HOST, hostStatus: HOST_STATUS.APPROVED });
+  const user = await User.findOne({ _id: userId, role: USER_ROLES.HOST, hostStatus: HOST_STATUS.APPROVED });
 
-    if (!user) {
-        throw new ApiError(404, "No hosts are found by this ID")
-    };
+  if (!user) {
+    throw new ApiError(404, "No hosts are found by this ID")
+  };
 
-    const result = await Car.find();
+  const result = await Car.find({ userId });
 
-    if (!result || result.length === 0) {
-        return []
-    };
+  if (!result || result.length === 0) {
+    return []
+  };
 
-    return result;
+  return result;
 
 }
 
 const getCarByIdFromDB = async (id: string) => {
-    const result = await Car.findById(id);
+  const result = await Car.findById(id);
 
-    if (!result) {
-        return {}
-    };
+  if (!result) {
+    return {}
+  };
 
-    return result;
+  return result;
 
 }
 
 const removeUndefined = <T extends Record<string, any>>(obj: T): Partial<T> =>
-    Object.fromEntries(
-        Object.entries(obj).filter(([_, v]) => v !== undefined && v !== null)
-    ) as Partial<T>;
+  Object.fromEntries(
+    Object.entries(obj).filter(([_, v]) => v !== undefined && v !== null)
+  ) as Partial<T>;
 
 enum ACTION {
-    ADD = "ADD",
-    DELETE = "DELETE"
+  ADD = "ADD",
+  DELETE = "DELETE"
 }
 
 interface IArrayAction {
-    field: string;            // e.g. "facilities"
-    action: ACTION // add/remove
-    value: string;            // single item
+  field: string;            // e.g. "facilities"
+  action: ACTION // add/remove
+  value: string;            // single item
 }
 
 const updateCarByIdToDB = async (
-    userId: string,
-    carId: string,
-    payload: Partial<ICar> & { arrayAction?: IArrayAction }
+  userId: string,
+  carId: string,
+  payload: Partial<ICar> & { arrayAction?: IArrayAction }
 ) => {
-    // -------------------------- Check host --------------------------
-    const user = await User.findOne({
-        _id: userId,
-        role: USER_ROLES.HOST,
-        hostStatus: HOST_STATUS.APPROVED,
-    });
+  // -------------------------- Check host --------------------------
+  const user = await User.findOne({
+    _id: userId,
+    role: USER_ROLES.HOST,
+    hostStatus: HOST_STATUS.APPROVED,
+  });
 
-    if (!user) {
-        throw new ApiError(404, "No approved host found by this ID");
+  if (!user) {
+    throw new ApiError(404, "No approved host found by this ID");
+  }
+
+  // -------------------------- Handle array actions --------------------------
+  let updateQuery: any = {};
+
+  if (payload.arrayAction) {
+    const { field, action, value } = payload.arrayAction;
+
+    if (!["facilities", "images", "availableDays"].includes(field)) {
+      throw new ApiError(400, "Invalid array field");
     }
 
-    // -------------------------- Handle array actions --------------------------
-    let updateQuery: any = {};
-
-    if (payload.arrayAction) {
-        const { field, action, value } = payload.arrayAction;
-
-        if (!["facilities", "images", "availableDays"].includes(field)) {
-            throw new ApiError(400, "Invalid array field");
-        }
-
-        if (action === ACTION.ADD) {
-            updateQuery = { $addToSet: { [field]: value } };
-        }
-
-        if (action === ACTION.DELETE) {
-            updateQuery = { $pull: { [field]: value } };
-        }
-
-
-        delete payload.arrayAction;
-
-        const updated = await Car.findOneAndUpdate(
-            { _id: carId, userId },
-            updateQuery,
-            { new: true }
-        );
-
-        return updated;
+    if (action === ACTION.ADD) {
+      updateQuery = { $addToSet: { [field]: value } };
     }
 
-    // -------------------------- Handle normal updates --------------------------
-    const cleanPayload = removeUndefined(payload);
+    if (action === ACTION.DELETE) {
+      updateQuery = { $pull: { [field]: value } };
+    }
 
 
-    delete (cleanPayload as any).userId;
+    delete payload.arrayAction;
 
     const updated = await Car.findOneAndUpdate(
-        { _id: carId, userId },
-        cleanPayload,
-        { new: true }
+      { _id: carId, userId },
+      updateQuery,
+      { new: true }
     );
 
     return updated;
+  }
+
+  // -------------------------- Handle normal updates --------------------------
+  const cleanPayload = removeUndefined(payload);
+
+
+  delete (cleanPayload as any).userId;
+
+  const updated = await Car.findOneAndUpdate(
+    { _id: carId, userId },
+    cleanPayload,
+    { new: true }
+  );
+
+  return updated;
 };
 
 const deleteCarByIdFromDB = async (userId: string, id: string) => {
-    // -------------------------- Check host --------------------------
-    const user = await User.findOne({
-        _id: userId,
-        role: USER_ROLES.HOST,
-        hostStatus: HOST_STATUS.APPROVED,
-    });
+  // -------------------------- Check host --------------------------
+  const user = await User.findOne({
+    _id: userId,
+    role: USER_ROLES.HOST,
+    hostStatus: HOST_STATUS.APPROVED,
+  });
 
-    if (!user) {
-        throw new ApiError(404, "No approved host found by this ID");
-    }
+  if (!user) {
+    throw new ApiError(404, "No approved host found by this ID");
+  }
 
-    const result = await Car.findByIdAndDelete(id);
+  const result = await Car.findByIdAndDelete(id);
 
-    if (!result) {
-        throw new ApiError(400, "Failed to delete car by this ID")
-    };
+  if (!result) {
+    throw new ApiError(400, "Failed to delete car by this ID")
+  };
 
-    return result;
+  return result;
 }
 
 
@@ -196,7 +209,7 @@ const getAvailability = async (carId: string, dateString: string) => {
         openHoursSet.add(hour);
       }
     });
-  } 
+  }
   // defaultStartTime/endTime
   else if (car.defaultStartTime && car.defaultEndTime) {
     const start = parseInt(car.defaultStartTime.split(":")[0], 10);
@@ -206,7 +219,7 @@ const getAvailability = async (carId: string, dateString: string) => {
     for (let h = start; h < endHour; h++) {
       openHoursSet.add(h % 24);
     }
-  } 
+  }
   // fallback 24 hour slots
   else {
     for (let i = 0; i < 24; i++) openHoursSet.add(i);
@@ -286,12 +299,13 @@ const createCarBlockedDatesToDB = async (
 
 
 export const CarServices = {
-    createCarToDB,
-    getAllCarsFromDB,
-    getOwnCarsFromDB,
-    getCarByIdFromDB,
-    updateCarByIdToDB,
-    deleteCarByIdFromDB,
-    getAvailability,
-    createCarBlockedDatesToDB,
+  createCarToDB,
+  getAllCarsFromDB,
+  getOwnCarsFromDB,
+  getCarByIdFromDB,
+  updateCarByIdToDB,
+  deleteCarByIdFromDB,
+  getAvailability,
+  createCarBlockedDatesToDB,
+  getAllCarsForVerificationsFromDB,
 }
