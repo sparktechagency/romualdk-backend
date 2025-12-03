@@ -37,10 +37,8 @@ const getFavourite = async (userId: string) => {
     const favourites = await FavouriteCar.find({ userId })
         .populate({
             path: "referenceId",
-        }).populate({path:"userId",select:"_id firstName lastName role profileImage"})
+        }).populate({path:"userId",select:"_id firstName email lastName role profileImage"})
         .lean();
-
-   
 
 
     return favourites;

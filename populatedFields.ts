@@ -1,1 +1,1 @@
-// firstName, lastName, profileImage, role, fullName
+// firstName, lastName, profileImage, email, role, fullName

@@ -3,7 +3,6 @@ import config from "../../../config";
 import ApiError from "../../../errors/ApiErrors";
 import { emailHelper } from "../../../helpers/emailHelper";
 import { ISendEmail } from "../../../types/email";
-
 import { User } from "../user/user.model";
 import { TSupport } from "./support.interface";
 import { Support } from "./support.model";
@@ -17,7 +16,7 @@ const support = async (id: string, payload: TSupport) => {
   }
 
   payload.userId = new Types.ObjectId(id);
-  payload.email = user.email;
+  
 
   const supportEntry = await Support.create(payload);
 
@@ -30,7 +29,7 @@ const support = async (id: string, payload: TSupport) => {
       <h2 style="margin:0;font-size:24px">FomoGigs - Support Request</h2>
     </div>
     <div style="padding:20px;background-color:#ffffff">
-      <p style="font-size:16px;margin-bottom:10px;"><strong>Requester Name:</strong> ${payload.name}</p>
+      <p style="font-size:16px;margin-bottom:10px;"><strong>Requester Name:</strong> ${user.fullName}</p>
       <p style="font-size:16px;margin-bottom:10px;"><strong>Requester Email:</strong> ${payload.email}</p>
       <p style="font-size:16px;margin-bottom:10px;"><strong>Subject:</strong> ${payload.subject}</p>
       <div style="margin-top:20px">
@@ -41,7 +40,7 @@ const support = async (id: string, payload: TSupport) => {
       </div>
       <div style="text-align:center;margin-top:30px">
         <a href="mailto:${payload.email}" style="background-color:#1a1c1e;color:#ffffff;padding:12px 20px;border-radius:6px;text-decoration:none;font-size:16px;display:inline-block">
-          Reply to ${payload.name}
+          Reply to ${user.fullName}
         </a>
       </div>
     </div>
