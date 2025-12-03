@@ -143,7 +143,7 @@ const createCarBlockedDates = catchAsync(async (req, res) => {
 
     const { id: userId } = req.user;
 
-    const {blockedDates }= req.body;
+    const { blockedDates } = req.body;
 
     const result = await CarServices.createCarBlockedDatesToDB(carId, userId, blockedDates);
 
@@ -151,6 +151,21 @@ const createCarBlockedDates = catchAsync(async (req, res) => {
         success: true,
         statusCode: 200,
         message: "Successfully blocked the car",
+        data: result,
+    })
+
+})
+
+const updateCarVerificationStatusById = catchAsync(async (req, res) => {
+    const { verificationStatus } = req.body;
+    const { carId } = req.params;
+
+    const result = await CarServices.updateCarVerificationStatusByIdToDB(carId, verificationStatus);
+
+    sendResponse(res, {
+        success: true,
+        statusCode: 200,
+        message: "Car verification status is updated successfully",
         data: result,
     })
 
@@ -166,4 +181,5 @@ export const CarControllers = {
     getAvailability,
     createCarBlockedDates,
     getAllCarsForVerifications,
+    updateCarVerificationStatusById,
 }

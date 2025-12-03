@@ -29,6 +29,8 @@ router.patch("/blocked/:carId", auth(USER_ROLES.HOST), CarControllers.createCarB
 
 router.get("/verification", auth(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN), CarControllers.getAllCarsForVerifications)
 
+router.patch("/verification/status/:carId", auth(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN), CarControllers.updateCarVerificationStatusById)
+
 
 router.route("/:id")
     .get(auth(USER_ROLES.ADMIN, USER_ROLES.HOST, USER_ROLES.SUPER_ADMIN, USER_ROLES.USER), CarControllers.getCarById)

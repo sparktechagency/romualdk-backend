@@ -37,7 +37,9 @@ const getAllCarsFromDB = async () => {
 
 // for verifications, dashboard
 const getAllCarsForVerificationsFromDB = async () => {
-  const result = await Car.find({ verificationStatus: CAR_VERIFICATION_STATUS.PENDING || CAR_VERIFICATION_STATUS.REJECTED || CAR_VERIFICATION_STATUS.APPROVED });
+  const result = await Car.find({
+    verificationStatus: { $in: [CAR_VERIFICATION_STATUS.PENDING, CAR_VERIFICATION_STATUS.REJECTED, CAR_VERIFICATION_STATUS.APPROVED] }
+  });
 
   if (!result || result.length === 0) {
     throw new ApiError(404, "No cars are found in the database")
@@ -51,10 +53,12 @@ const updateCarVerificationStatusByIdToDB = async (carId: string, carVerificatio
   if (![CAR_VERIFICATION_STATUS.PENDING, CAR_VERIFICATION_STATUS.APPROVED, CAR_VERIFICATION_STATUS.REJECTED].includes(carVerificationStatus)) {
     throw new ApiError(400, "Car verification status must be either 'PENDING','APPROVED' or 'REJECTED'");
   }
+  console.log(carVerificationStatus, "STATUS")
 
-  const result = await User.findByIdAndUpdate(carId, { carVerificationStatus }, { new: true });
+  const result = await Car.findByIdAndUpdate(carId, { verificationStatus: carVerificationStatus }, { new: true });
+
   if (!result) {
-    throw new ApiError(400, "Failed to change car verification status by this host ID");
+    throw new ApiError(400, "Failed to change car verification status by this car ID");
   }
 
   return result;
