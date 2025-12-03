@@ -17,17 +17,26 @@ const createMedia = catchAsync(async (req, res) => {
 })
 
 const getMediaByType = catchAsync(async (req, res) => {
-    const { type } = req.query
-    console.log(type, "Type")
-    const result = await MediaServices.getMediaByTypeFromDB(type);
+  const { type, includeInactive } = req.query;
 
-    sendResponse(res, {
-        success: true,
-        statusCode: 200,
-        message: "Successfully get media by types",
-        data: result,
-    })
-})
+  console.log(type, includeInactive, "Type & IncludeInactive");
+
+  // query string থেকে boolean convert
+  const includeInactiveBool = includeInactive === "true";
+
+  const result = await MediaServices.getMediaByTypeFromDB(
+    type,
+    includeInactiveBool
+  );
+
+  sendResponse(res, {
+    success: true,
+    statusCode: 200,
+    message: "Successfully get media by types",
+    data: result,
+  });
+});
+
 
 const updateMediaById = catchAsync(async (req, res) => {
     const { mediaId } = req.params;
@@ -44,9 +53,9 @@ const updateMediaById = catchAsync(async (req, res) => {
 })
 
 const updateMediaStatus = catchAsync(async (req, res) => {
-    const { id } = req.params;
+    const { mediaId } = req.params;
     const { status } = req.body;
-    const result = await MediaServices.updateMediaStatusByIdToDB(id, status);
+    const result = await MediaServices.updateMediaStatusByIdToDB(mediaId, status);
     sendResponse(res, {
         success: true,
         statusCode: 200,

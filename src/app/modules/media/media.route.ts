@@ -18,6 +18,8 @@ router.route("/")
     .get(MediaControllers.getMediaByType)
 
 
+router.patch("/status/:mediaId", auth(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN), MediaControllers.updateMediaStatus)
+
 router.route("/:mediaId")
     .patch(auth(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN),
         fileUploadHandler(),
@@ -25,6 +27,9 @@ router.route("/:mediaId")
             { fieldName: FOLDER_NAMES.IMAGE, forceSingle: true }
         ),
         MediaControllers.updateMediaById)
-    
+    .delete(auth(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN), MediaControllers.deleteMedia)
+
+
+
 
 export const MediaRoutes = router;

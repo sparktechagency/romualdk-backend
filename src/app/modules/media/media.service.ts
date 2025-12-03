@@ -38,24 +38,26 @@ const createMediaToDB = async (payload: IMedia) => {
     }
 }
 
-const getMediaByTypeFromDB = async (type: any) => {
 
+ const getMediaByTypeFromDB = async (
+  type: any,
+  includeInactive: boolean = false
+) => {
+  if (![MEDIA_TYPE.BANNER, MEDIA_TYPE.FEED].includes(type)) {
+    throw new ApiError(400, "Media type must be 'BANNER' or 'FEED'");
+  }
 
-    console.log(type)
+  // filter condition
+  const filter: any = { type };
+  if (!includeInactive) {
+    filter.status = true;
+  }
 
-    if (![MEDIA_TYPE.BANNER, MEDIA_TYPE.FEED].includes(type)) {
-        throw new ApiError(400, "Media type must be 'BANNER' or 'FEED'");
-    }
+  const mediaList = await Media.find(filter);
 
-
-    const mediaList = await Media.find({ type });
-
-    if (!mediaList || mediaList.length === 0) {
-        return []
-    }
-
-    return mediaList;
+  return mediaList || [];
 };
+
 
 const updateMediaByIdToDB = async (
     mediaId: string,
