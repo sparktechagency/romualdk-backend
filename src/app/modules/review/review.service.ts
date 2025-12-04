@@ -84,7 +84,7 @@ const getReviewSummaryFromDB = async (targetId: string, type: REVIEW_TYPE.CAR | 
     const reviews = await Review.find(matchQuery)
         .populate({
             path: "fromUserId",
-            select: "name profileImage _id",
+            select: "firstName lastName role email phone profileImage _id",
         })
         .sort({ createdAt: -1 })
         .lean();
@@ -95,8 +95,12 @@ const getReviewSummaryFromDB = async (targetId: string, type: REVIEW_TYPE.CAR | 
         feedback: review.feedback,
         fromUser: {
             _id: review.fromUserId._id,
-            name: review.fromUserId.name,
-            profileImage: review.fromUserId.profileImage,
+            firstName: review.fromUserId.firstName,
+            lastName: review.fromUserId.lastName,
+            role: review.fromUserId.role,
+            email: review.fromUserId?.email,
+            phone: review.fromUserId?.phone,
+            profileImage: review.fromUserId?.profileImage,
         },
     }));
 

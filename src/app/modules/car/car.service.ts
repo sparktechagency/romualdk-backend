@@ -6,6 +6,8 @@ import { AVAILABLE_DAYS, CAR_VERIFICATION_STATUS, IBlockedDate, ICar } from "./c
 import { Car } from "./car.model";
 import QueryBuilder from "../../builder/queryBuilder";
 import { FavouriteCar } from "../favouriteCar/favouriteCar.model";
+import { ReviewServices } from "../review/review.service";
+import { REVIEW_TYPE } from "../review/review.interface";
 
 const createCarToDB = async (userId: string, payload: ICar) => {
   const user = await User.findOne({ _id: userId, hostStatus: HOST_STATUS.APPROVED, role: USER_ROLES.HOST });
@@ -31,7 +33,7 @@ const createCarToDB = async (userId: string, payload: ICar) => {
 // for feed 
 const getAllCarsFromDB = async (query: any, userId: string) => {
 
-  const baseQuery = Car.find({ verificationStatus: CAR_VERIFICATION_STATUS.APPROVED }).populate({ path: "userId", select: "firstName lastName fullName role profileImage" });
+  const baseQuery = Car.find({ verificationStatus: CAR_VERIFICATION_STATUS.APPROVED }).populate({ path: "userId", select: "firstName lastName fullName role profileImage email phone" });
 
 
   const queryBuilder = new QueryBuilder(baseQuery, query)
@@ -51,9 +53,15 @@ const getAllCarsFromDB = async (query: any, userId: string) => {
         referenceId: car._id,
       });
 
+      const reviewSummary = await ReviewServices.getReviewSummaryFromDB(car.id, REVIEW_TYPE.CAR)
+
       return {
         ...car.toObject(),
         isFavourite: Boolean(isBookmarked),
+        averageRating: reviewSummary.averageRating,
+        totalReviews: reviewSummary.totalReviews,
+        starCounts: reviewSummary.starCounts,
+        reviews: reviewSummary.reviews,
       };
     })
   );
@@ -77,7 +85,7 @@ const getAllCarsForVerificationsFromDB = async (query: any) => {
 
   const baseQuery = Car.find({
     verificationStatus: { $in: [CAR_VERIFICATION_STATUS.PENDING, CAR_VERIFICATION_STATUS.REJECTED, CAR_VERIFICATION_STATUS.APPROVED] }
-  }).populate({ path: "userId", select: "firstName lastName fullName role profileImage" });
+  }).populate({ path: "userId", select: "firstName lastName fullName role email phone profileImage" });
 
   const queryBuilder = new QueryBuilder(baseQuery, query)
     .search(["brand", "model", "transmission", "color", "city", "licensePlate"])
@@ -126,7 +134,7 @@ const getOwnCarsFromDB = async (userId: string) => {
     throw new ApiError(404, "No hosts are found by this ID")
   };
 
-  const result = await Car.find({ userId }).populate({ path: "userId", select: "firstName lastName fullName role profileImage" });
+  const result = await Car.find({ userId }).populate({ path: "userId", select: "firstName lastName fullName role profileImage email phone" });
 
   const carsWithBookmark = await Promise.all(
     result.map(async (car: any) => {
@@ -135,9 +143,16 @@ const getOwnCarsFromDB = async (userId: string) => {
         referenceId: car._id,
       });
 
+      const reviewSummary = await ReviewServices.getReviewSummaryFromDB(car.id, REVIEW_TYPE.CAR)
+
+
       return {
         ...car.toObject(),
         isFavourite: Boolean(isBookmarked),
+        averageRating: reviewSummary.averageRating,
+        totalReviews: reviewSummary.totalReviews,
+        starCounts: reviewSummary.starCounts,
+        reviews: reviewSummary.reviews,
       };
     })
   );
@@ -151,12 +166,15 @@ const getOwnCarsFromDB = async (userId: string) => {
 }
 
 const getCarByIdFromDB = async (id: string, userId: string) => {
-  const result = await Car.findById(id).populate({ path: "userId", select: "firstName lastName fullName role profileImage" });
+  const result = await Car.findById(id).populate({ path: "userId", select: "firstName lastName fullName role profileImage email phone" });
 
   const isBookmarked = await FavouriteCar.exists({
     userId,
     referenceId: id,
   });
+
+  const reviewSummary = await ReviewServices.getReviewSummaryFromDB(id, REVIEW_TYPE.CAR)
+
 
   if (!result) {
     return {}
@@ -165,6 +183,10 @@ const getCarByIdFromDB = async (id: string, userId: string) => {
   return {
     ...result.toObject(),
     isFavourite: Boolean(isBookmarked),
+    averageRating: reviewSummary.averageRating,
+    totalReviews: reviewSummary.totalReviews,
+    starCounts: reviewSummary.starCounts,
+    reviews: reviewSummary.reviews,
   };;
 
 }
