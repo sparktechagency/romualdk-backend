@@ -12,6 +12,20 @@ const statCounts = catchAsync(async (req, res) => {
     })
 })
 
+const getYearlyGuestHostChart = catchAsync(async (req, res) => {
+    const year = req.query.year ? Number(req.query.year) : undefined;
+
+    const data = await AnalyticsServices.getGuestHostYearlyChart(year);
+
+    sendResponse(res, {
+        statusCode: 200,
+        success: true,
+        message: "Yearly Guest & Host chart fetched successfully",
+        data,
+    });
+});
+
 export const AnalyticsControllers = {
-    statCounts
+    statCounts,
+    getYearlyGuestHostChart,
 }
