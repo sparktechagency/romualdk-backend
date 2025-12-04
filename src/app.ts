@@ -27,6 +27,7 @@ app.use(express.static("uploads"));
 //router
 app.use("/api/v1", router);
 
+
 app.get("/", (req: Request, res: Response) => {
   res.send("Server is running...");
 });

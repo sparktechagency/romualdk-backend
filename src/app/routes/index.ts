@@ -10,7 +10,12 @@ import { MessageRoutes } from '../modules/message/message.routes';
 import { CarRoutes } from '../modules/car/car.routes';
 import { MediaRoutes } from '../modules/media/media.route';
 import { SupportRoutes } from '../modules/support/support.route';
+
 import { AnalyticsRoutes } from '../modules/analytics/analytics.route';
+
+import { paymentRoutes } from '../modules/payment/payment.routes';
+import { bookingRoutes } from '../modules/booking/booking.routes';
+
 
 const router = express.Router();
 
@@ -59,9 +64,20 @@ const apiRoutes = [
         path: "/supports",
         route: SupportRoutes
     },
+
     {
         path: "/analytics",
         route: AnalyticsRoutes
+  },
+       {
+        path: "/bookings",
+        route: bookingRoutes
+
+    },
+    {
+        path: "/payments",
+        route: paymentRoutes
+
     }
 ]
 
