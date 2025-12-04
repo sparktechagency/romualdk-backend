@@ -12,7 +12,7 @@ const router = express.Router();
 
 /* ---------------------------- PROFILE ROUTES ---------------------------- */
 router.route("/profile")
-    .get(auth(USER_ROLES.ADMIN, USER_ROLES.USER), UserController.getUserProfile)
+    .get(auth(USER_ROLES.ADMIN, USER_ROLES.USER, USER_ROLES.SUPER_ADMIN, USER_ROLES.HOST), UserController.getUserProfile)
     .delete(auth(USER_ROLES.USER, USER_ROLES.HOST), UserController.deleteProfile);
 
 /* ---------------------------- ADMIN CREATE ------------------------------ */

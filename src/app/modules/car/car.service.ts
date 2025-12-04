@@ -28,8 +28,6 @@ const createCarToDB = async (userId: string, payload: ICar) => {
 
 }
 
-
-
 // for feed 
 const getAllCarsFromDB = async (query: any, userId: string) => {
 

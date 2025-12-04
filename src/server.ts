@@ -23,7 +23,6 @@ async function main() {
         // create super admin
         seedSuperAdmin();
 
-
         mongoose.connect(config.database_url as string);
         logger.info(colors.green('🚀 Database connected successfully'));
   
