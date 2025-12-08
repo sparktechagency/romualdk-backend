@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-// Verify Phone OTP
+// verify Phone OTP
 
 const createVerifyPhoneZodSchema = z.object({
   body: z.object({
@@ -9,7 +9,7 @@ const createVerifyPhoneZodSchema = z.object({
   }),
 });
 
-// Login
+// login
 
 const createLoginZodSchema = z.object({
   body: z.object({
@@ -19,15 +19,16 @@ const createLoginZodSchema = z.object({
   }),
 });
 
-// Forgot Password (Send OTP)
+// forgot Password (Send OTP)
 
 const createForgetPasswordZodSchema = z.object({
   body: z.object({
-    phone: z.string({ required_error: "Phone is required" }),
+    phone: z.string().optional(),
+    email: z.string().optional(),
   }),
 });
 
-// Reset Password
+// reset Password
 
 const createResetPasswordZodSchema = z.object({
   body: z.object({
@@ -38,7 +39,7 @@ const createResetPasswordZodSchema = z.object({
   }),
 });
 
-// Change Password
+// change Password
 
 const createChangePasswordZodSchema = z.object({
   body: z.object({
@@ -52,7 +53,7 @@ const createChangePasswordZodSchema = z.object({
   }),
 });
 
-// Resend OTP
+// resend OTP
 
 const createResendOTPSchema = z.object({
   body: z.object({

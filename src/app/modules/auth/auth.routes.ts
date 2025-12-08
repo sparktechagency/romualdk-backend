@@ -7,45 +7,45 @@ import { AuthValidation } from "./auth.validation";
 
 const router = express.Router();
 
-// Login
+// login
 router.post(
   "/login",
   validateRequest(AuthValidation.createLoginZodSchema),
   AuthController.loginUser,
 );
 
-// Forgot Password (Send OTP)
+// forgot Password (Send OTP)
 router.post(
   "/forget-password",
   validateRequest(AuthValidation.createForgetPasswordZodSchema),
   AuthController.forgetPassword,
 );
 
-// Refresh Token
+// refresh Token
 router.post("/refresh-token", AuthController.newAccessToken);
 
-// Resend OTP (Phone)
+// resend OTP (Phone)
 router.post(
   "/resend-otp",
-  validateRequest(AuthValidation.createResendOTPSchema), // Zod validation for phone
+  validateRequest(AuthValidation.createResendOTPSchema), 
   AuthController.resendPhoneOTP,
 );
 
-// Verify Phone OTP
+// verify Phone OTP
 router.post(
   "/verify-phone",
   validateRequest(AuthValidation.createVerifyPhoneZodSchema),
   AuthController.verifyPhone,
 );
 
-// Reset Password
+// reset Password
 router.post(
   "/reset-password",
   validateRequest(AuthValidation.createResetPasswordZodSchema),
   AuthController.resetPassword,
 );
 
-// Change Password
+// change Password
 router.post(
   "/change-password",
   auth(USER_ROLES.ADMIN, USER_ROLES.USER, USER_ROLES.HOST),
@@ -53,7 +53,7 @@ router.post(
   AuthController.changePassword,
 );
 
-// Delete Account
+// delete Account
 router.delete(
   "/delete-account",
   auth(USER_ROLES.ADMIN),

@@ -33,18 +33,37 @@ const loginUser = catchAsync(async (req: Request, res: Response) => {
 });
 
 // forget Password (Send OTP)
-const forgetPassword = catchAsync(async (req: Request, res: Response) => {
-  const { phone, countryCode } = req.body; // ✅ Added countryCode
+// const forgetPassword = catchAsync(async (req: Request, res: Response) => {
+//   const { phone, countryCode } = req.body; // Added countryCode
 
-  const result = await AuthService.forgetPasswordToDB(phone, countryCode);
+//   const result = await AuthService.forgetPasswordToDB(phone, countryCode);
+
+//   sendResponse(res, {
+//     success: true,
+//     statusCode: StatusCodes.OK,
+//     message: "OTP sent to your phone!",
+//     data: result,
+//   });
+// });
+
+const forgetPassword = catchAsync(async (req: Request, res: Response) => {
+  const { email, phone, countryCode } = req.body;
+
+  const result = await AuthService.forgetPasswordToDB({
+    email,
+    phone,
+    countryCode,
+  });
 
   sendResponse(res, {
     success: true,
     statusCode: StatusCodes.OK,
-    message: "OTP sent to your phone!",
+    message:
+      'Please check your email or phone. We have sent you a one-time passcode (OTP).',
     data: result,
   });
 });
+
 
 // reset Password
 const resetPassword = catchAsync(async (req, res) => {
@@ -94,7 +113,7 @@ const newAccessToken = catchAsync(async (req: Request, res: Response) => {
 
 // resend OTP (Phone)
 const resendPhoneOTP = catchAsync(async (req: Request, res: Response) => {
-  const { phone, countryCode } = req.body; // ✅ Added countryCode
+  const { phone, countryCode } = req.body; 
 
   const result = await AuthService.resendPhoneOTPToDB(phone, countryCode);
 

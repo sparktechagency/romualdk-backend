@@ -9,6 +9,9 @@ import { User } from "../user/user.model";
 import { twilioService } from "../twilioService/sendOtpWithVerify";
 import cryptoToken from "../../../util/cryptoToken";
 import { ResetToken } from "../resetToken/resetToken.model";
+import { emailHelper } from "../../../helpers/emailHelper";
+import generateOTP from "../../../util/generateOTP";
+import { emailTemplate } from "../../../shared/emailTemplate";
 
 //login
 // const loginUserFromDB = async (payload: ILoginData) => {
@@ -92,14 +95,98 @@ const loginUserFromDB = async (payload: ILoginData) => {
 };
 
 //forget password - ADD countryCode parameter
-const forgetPasswordToDB = async (phone: string, countryCode: string) => {
-  const user = await User.findOne({ phone, countryCode });
-  if (!user) throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
+// const forgetPasswordToDB = async (phone: string, countryCode: string) => {
+//   const user = await User.findOne({ phone, countryCode });
+//   if (!user) throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
 
-  // ✅ Pass countryCode to Twilio
-  await twilioService.sendOTPWithVerify(phone, countryCode);
+//   // ✅ Pass countryCode to Twilio
+//   await twilioService.sendOTPWithVerify(phone, countryCode);
 
-  return { message: "OTP sent to your phone" };
+//   return { message: "OTP sent to your phone" };
+// };
+
+const forgetPasswordToDB = async (payload: any) => {
+  const { email, phone, countryCode } = payload;
+
+  if (!email && !phone) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'Provide phone or email!');
+  }
+
+  let user;
+
+  // ===============================
+  //  1 ) PHONE FLOW (priority 1)
+  // ===============================
+
+  if (phone) {
+    if (!countryCode) {
+      throw new ApiError(
+        StatusCodes.BAD_REQUEST,
+        'countryCode is required for phone'
+      );
+    }
+
+    user = await User.findOne({ phone, countryCode });
+
+    if (!user) {
+      throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
+    }
+
+    // generate OTP
+    const otp = generateOTP();
+
+    // Twilio send
+    await twilioService.sendOTPWithVerify(phone, countryCode);
+
+    // save OTP
+    const authentication = {
+      oneTimeCode: otp,
+      expireAt: new Date(Date.now() + 3 * 60 * 1000), // 3 minutes
+    };
+
+    await User.findOneAndUpdate(
+      { phone, countryCode },
+      { $set: { authentication } }
+    );
+
+    return { via: 'phone', phone, countryCode };
+  }
+
+  // ===============================
+  //  2 ) EMAIL FLOW (priority 2)
+  // ===============================
+
+  if (email) {
+    const userByEmail = await User.isExistUserByEmail(email);
+
+    if (!userByEmail) {
+      throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
+    }
+
+    // generate OTP
+    const otp = generateOTP();
+
+    // template
+    const value = { otp, email: userByEmail.email };
+    const forgetPassword = emailTemplate.resetPassword(value);
+
+    // send mail
+    emailHelper.sendEmail(forgetPassword);
+
+    // save in DB
+    const authentication = {
+      oneTimeCode: otp,
+      expireAt: new Date(Date.now() + 3 * 60 * 1000),
+    };
+
+    await User.findOneAndUpdate(
+      { email },
+      { $set: { authentication } },
+      { new: true }
+    );
+
+    return { via: 'email', email };
+  }
 };
 
 //verify phone - ADD countryCode parameter
@@ -342,7 +429,7 @@ const resendPhoneOTPToDB = async (phone: string, countryCode: string) => {
     throw new ApiError(StatusCodes.BAD_REQUEST, "User already verified!");
   }
 
-  // ✅ Pass countryCode to Twilio
+  // Pass countryCode to Twilio
   const result = await twilioService.sendOTPWithVerify(phone, countryCode);
 
   return result;
