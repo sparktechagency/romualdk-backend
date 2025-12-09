@@ -9,5 +9,7 @@ const router = Router();
 router.post("/", auth(USER_ROLES.ADMIN, USER_ROLES.HOST, USER_ROLES.SUPER_ADMIN, USER_ROLES.USER), BookingController.create) ;
 router.get("/my", auth(), BookingController.myBookings);
 router.get("/host", auth(), BookingController.hostBookings);
+router.patch("/check-in/:id", auth(USER_ROLES.ADMIN, USER_ROLES.HOST, USER_ROLES.SUPER_ADMIN, USER_ROLES.USER), BookingController.checkInController);
+router.patch("/check-out/:id", auth(USER_ROLES.ADMIN, USER_ROLES.HOST, USER_ROLES.SUPER_ADMIN,  USER_ROLES.USER), BookingController.checkOutController);
 
 export const bookingRoutes = router;

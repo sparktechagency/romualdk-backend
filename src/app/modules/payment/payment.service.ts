@@ -40,13 +40,24 @@ export const createCheckoutSession = async (input: InitiatePaymentDto) => {
     billing_address_collection: "required",
   });
 
+  // await Transaction.create({
+  //   bookingId: booking._id,
+  //   amount: booking.totalAmount,
+  //   method: PaymentMethod.CARD,
+  //   stripeSessionId: session.id,
+  //   status: TransactionStatus.PENDING,
+  // });
   await Transaction.create({
-    bookingId: booking._id,
-    amount: booking.totalAmount,
-    method: PaymentMethod.CARD,
-    stripeSessionId: session.id,
-    status: TransactionStatus.PENDING,
+  bookingId: booking._id,
+  amount: booking.totalAmount,
+  method: PaymentMethod.CARD,
+  stripeSessionId: session.id,
+  status: TransactionStatus.PENDING,
+}).then(async (trx) => {
+  await Booking.findByIdAndUpdate(booking._id, {
+    transactionId: trx._id
   });
+});
 
   return {
     success: true,

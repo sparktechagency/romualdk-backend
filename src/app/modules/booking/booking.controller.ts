@@ -40,8 +40,36 @@ const hostBookings = async (req: Request, res: Response) => {
   }
 };
 
+ const checkInController = async (req: Request, res: Response) => {
+  try {
+    const bookingId = req.params.id;
+
+    const updated = await BookingService.checkIn(bookingId);
+
+    res.json({ success: true, message: "Checked in successfully!", data: updated });
+  } catch (e: any) {
+    res.status(400).json({ success: false, message: e.message });
+  }
+};
+
+const checkOutController = async (req: Request, res: Response) => {
+  try {
+    const bookingId = req.params.id;
+
+    const updated = await BookingService.checkOut(bookingId);
+
+    res.json({ success: true, message: "Checked out successfully!", data: updated });
+  } catch (e: any) {
+    res.status(400).json({ success: false, message: e.message });
+  }
+};
+
+
+
 export const BookingController = {
   create,
   myBookings,
   hostBookings,
+  checkInController,
+  checkOutController,
 };
