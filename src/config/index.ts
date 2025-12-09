@@ -14,10 +14,19 @@ export default {
     jwtRefreshSecret: process.env.JWT_REFRESH_SECRET,
     jwtRefreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN,
   },
+
+  // cinetpay: {
+  //   CINATPAY_SITE_ID: process.env.CINATPAY_SITE_ID!,
+  //   CINATPAY_API_KEY: process.env.CINATPAY_API_KEY!,
+  //   CINATPAY_SECRET_KEY: process.env.CINATPAY_SECRET_KEY!,
+  //   BASE_URL: process.env.BASE_URL!,
+  // },
+
   stripe: {
-    stripeSecretKey: process.env.STRIPE_API_SECRET,
-    webhookSecret: process.env.WEBHOOK_SECRET,
-    paymentSuccess: process.env.WEBHOOK_SECRET,
+    stripeSecretKey: process.env.STRIPE_API_SECRET!,
+    webhookSecret: process.env.WEBHOOK_SECRET!,
+    paymentSuccess: process.env.WEBHOOK_SECRET!,
+    BASE_URL: process.env.BASE_URL!,
   },
   email: {
     from: process.env.EMAIL_FROM,
