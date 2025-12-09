@@ -3,7 +3,7 @@ import Stripe from "stripe";
 import stripe from "../../../config/stripe";
 import config from "../../../config";
 import { Booking } from "../booking/booking.model";
-import { Transaction } from "./transaction.model";
+import { Transaction, TransactionStatus, PaymentMethod } from "./transaction.model";
 import { BOOKING_STATUS } from "../booking/booking.interface";
 import { InitiatePaymentDto } from "./payment.interface";
 
@@ -16,7 +16,7 @@ export const createCheckoutSession = async (input: InitiatePaymentDto) => {
     throw new Error("Booking already paid or canceled");
 
   const session = await stripe.checkout.sessions.create({
-    payment_method_types: ["card"],
+    payment_method_types: [PaymentMethod.CARD],
     mode: "payment",
     success_url: `${process.env.BASE_URL}/api/payments/success?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${process.env.BASE_URL}/api/payments/cancel`,
@@ -43,8 +43,9 @@ export const createCheckoutSession = async (input: InitiatePaymentDto) => {
   await Transaction.create({
     bookingId: booking._id,
     amount: booking.totalAmount,
+    method: PaymentMethod.CARD,
     stripeSessionId: session.id,
-    status: "pending",
+    status: TransactionStatus.PENDING,
   });
 
   return {
@@ -82,7 +83,7 @@ export const handleWebhook = async (rawBody: Buffer, sig: string) => {
       await Transaction.findOneAndUpdate(
         { stripeSessionId: session.id },
         {
-          status: "succeeded",
+          status: TransactionStatus.SUCCEEDED,
           stripePaymentIntentId: session.payment_intent as string,
         }
       );
@@ -94,4 +95,4 @@ export const handleWebhook = async (rawBody: Buffer, sig: string) => {
 
   return false;
 };
-// ...existing code...
+ 

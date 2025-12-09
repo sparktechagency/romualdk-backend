@@ -16,7 +16,7 @@ const bookingSchema = new Schema<IBooking>(
       enum: Object.values(BOOKING_STATUS),
       default: BOOKING_STATUS.PENDING,
     },
-  type: { type: String, enum: Driver_STATUS, required: false },  
+  type: { type: String, enum: Object.values(Driver_STATUS), required: false },  
   },
   { timestamps: true, versionKey: false }
 );

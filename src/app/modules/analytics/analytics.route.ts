@@ -5,7 +5,6 @@ import { AnalyticsControllers } from "./analytics.controller";
 
 const router = express.Router();
 
-<<<<<<< HEAD
 router.get(
   "/stat-counts",
   auth(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN),
@@ -19,8 +18,3 @@ router.get(
 );
 
 export const AnalyticsRoutes = router;
-=======
-router.get("/stat-counts", auth(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN), AnalyticsControllers.statCounts)
-
-export const AnalyticsRoutes = router;
->>>>>>> clean-payment
