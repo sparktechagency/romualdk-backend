@@ -1,6 +1,6 @@
 import { Booking } from "./booking.model";
 import { Car } from "../car/car.model";
-import { BOOKING_STATUS, Driver_STATUS } from "./booking.interface";
+import { BOOKING_STATUS, CAR_STATUS, Driver_STATUS } from "./booking.interface";
 import { Types } from "mongoose";
 
 // -------- Price Calculation ----------
@@ -38,22 +38,28 @@ const createBooking = async (body: any, userId: string) => {
     type: type || Driver_STATUS.WITHOUTDRIVER,
   });
 
-    // return booking.populate([
-    //   { path: "carId" },
-      // { path: "userId" },
-      // { path: "hostId" },
-    // ]);
+  // return booking.populate([
+  //   { path: "carId" },
+  // { path: "userId" },
+  // { path: "hostId" },
+  // ]);
   return booking;
 };
 
 // -------- Get user bookings ----------
-const getUserBookings = async (userId: string) => {
-  return Booking.find({ userId })
-  .populate("carId")
-  .populate("hostId")
-  .populate("transactionId")
-  .sort({ createdAt: -1 });
+ 
+const getUserBookings = async (userId: string, status?: string) => {
+  const filter: any = { userId };
+
+  if (status) filter.carStatus = status;
+
+  return Booking.find(filter)
+    .populate("carId")
+    .populate("hostId")
+    .populate("transactionId")
+    .sort({ createdAt: -1 });
 };
+
 
 // -------- Get host bookings ----------
 const getHostBookings = async (hostId: string) => {
@@ -67,11 +73,19 @@ const checkIn = async (bookingId: string) => {
   const booking = await Booking.findById(bookingId);
   if (!booking) throw new Error("Booking not found");
 
-  if (booking.status !== "paid") throw new Error("Payment required");
+  if (booking.status !== BOOKING_STATUS.PAID)
+    throw new Error("Payment required");
 
   if (booking.checkIn) throw new Error("Already checked in");
 
   booking.checkIn = true;
+  if (
+    booking.status === BOOKING_STATUS.PAID &&
+    booking.checkIn &&
+    !booking.checkOut
+  ) {
+    booking.carStatus = CAR_STATUS.ONGOING;
+  }
   return booking.save();
 };
 
@@ -83,12 +97,36 @@ const checkOut = async (bookingId: string) => {
   if (booking.checkOut) throw new Error("Already checked out");
 
   booking.checkOut = true;
+  if (
+    booking.status === BOOKING_STATUS.PAID &&
+    booking.checkIn &&
+    booking.checkOut
+  ) {
+    booking.carStatus = CAR_STATUS.COMPLETED;
+  }
   return booking.save();
 };
 
- 
+const isCancelled = async (bookingId: string) => {
+  const booking = await Booking.findById(bookingId);
+  if (!booking) throw new Error("Booking not found");
+  
+  if (
+    // booking.status === BOOKING_STATUS.PAID &&
+    !booking.checkIn &&
+    !booking.checkOut &&
+    !booking.isCancelled
+  ) {
+    booking.isCancelled = true;
+    booking.carStatus = CAR_STATUS.CANCELLED;
+  }
+  else {
+    throw new Error("Cannot cancel this booking");
+  }
 
 
+  return booking.save();
+};
 // -------- Export as object ----------
 export const BookingService = {
   createBooking,
@@ -96,4 +134,5 @@ export const BookingService = {
   getHostBookings,
   checkIn,
   checkOut,
+  isCancelled,
 };

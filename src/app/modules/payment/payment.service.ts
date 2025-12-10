@@ -4,7 +4,7 @@ import stripe from "../../../config/stripe";
 import config from "../../../config";
 import { Booking } from "../booking/booking.model";
 import { Transaction, TransactionStatus, PaymentMethod } from "./transaction.model";
-import { BOOKING_STATUS } from "../booking/booking.interface";
+import { BOOKING_STATUS, CAR_STATUS } from "../booking/booking.interface";
 import { InitiatePaymentDto } from "./payment.interface";
 
 export const createCheckoutSession = async (input: InitiatePaymentDto) => {
@@ -89,6 +89,13 @@ export const handleWebhook = async (rawBody: Buffer, sig: string) => {
     const booking = await Booking.findById(bookingId);
     if (booking && booking.status === BOOKING_STATUS.PENDING) {
       booking.status = BOOKING_STATUS.PAID;
+
+       // --------- CAR STATUS LOGIC (Rules) --------- //
+    if (!booking.checkIn && !booking.checkOut) {
+        booking.carStatus
+         = CAR_STATUS.UPCOMING;  
+      }
+
       await booking.save();
 
       await Transaction.findOneAndUpdate(

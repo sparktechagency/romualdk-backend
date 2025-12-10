@@ -20,7 +20,8 @@ const bookingSchema = new Schema<IBooking>(
     carStatus: { type: String, enum: Object.values(CAR_STATUS)},
     type: { type: String, enum: Object.values(Driver_STATUS), required: false },  
     checkIn: { type: Boolean, default: false },
-    checkOut: { type: Boolean, default: false}
+    checkOut: { type: Boolean, default: false},
+    isCancelled: { type: Boolean, default: false },
   },
   
   { timestamps: true, versionKey: false }
@@ -30,6 +31,7 @@ const bookingSchema = new Schema<IBooking>(
 // Indexes
 bookingSchema.index({ userId: 1 });
 bookingSchema.index({ hostId: 1 });
+
 bookingSchema.index({ carId: 1 });
 
 export const Booking: Model<IBooking> = model<IBooking>(

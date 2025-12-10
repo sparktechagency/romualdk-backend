@@ -34,6 +34,7 @@ export interface IBooking {
   type?: Driver_STATUS;
   checkIn?: boolean;
   checkOut?: boolean;
+  isCancelled?: boolean;
   createdAt: string;
   updatedAt: string;
 }

@@ -3,8 +3,6 @@ import { BookingService } from "./booking.service";
 
 const create = async (req: Request, res: Response) => {
   try {
-    console.log("Body:", req.body);
-
     const userId = (req as any).user._id || (req as any).user.id;
     const booking = await BookingService.createBooking(req.body, userId);
 
@@ -21,7 +19,9 @@ const create = async (req: Request, res: Response) => {
 const myBookings = async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user.id;
-    const bookings = await BookingService.getUserBookings(userId);
+    const status = req.query.status as string;
+
+    const bookings = await BookingService.getUserBookings(userId, status);
 
     res.json({ success: true, data: bookings });
   } catch (error: any) {
@@ -29,6 +29,8 @@ const myBookings = async (req: Request, res: Response) => {
   }
 };
 
+
+ 
 const hostBookings = async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user.id;
@@ -40,13 +42,17 @@ const hostBookings = async (req: Request, res: Response) => {
   }
 };
 
- const checkInController = async (req: Request, res: Response) => {
+const checkInController = async (req: Request, res: Response) => {
   try {
     const bookingId = req.params.id;
 
     const updated = await BookingService.checkIn(bookingId);
 
-    res.json({ success: true, message: "Checked in successfully!", data: updated });
+    res.json({
+      success: true,
+      message: "Checked in successfully!",
+      data: updated,
+    });
   } catch (e: any) {
     res.status(400).json({ success: false, message: e.message });
   }
@@ -58,13 +64,28 @@ const checkOutController = async (req: Request, res: Response) => {
 
     const updated = await BookingService.checkOut(bookingId);
 
-    res.json({ success: true, message: "Checked out successfully!", data: updated });
+    res.json({
+      success: true,
+      message: "Checked out successfully!",
+      data: updated,
+    });
   } catch (e: any) {
     res.status(400).json({ success: false, message: e.message });
   }
 };
 
+const isCancelledController = async (req: Request, res: Response) => {
+  try {
+    const bookingId = req.params.id;
+    const cancelled = await BookingService.isCancelled(bookingId);
 
+    res.json({ success: true, data: { isCancelled: cancelled } });
+  } catch (e: any) {
+    res.status(400).json({ success: false, message: e.message });
+  }
+};
+
+// -------- Export as object ----------
 
 export const BookingController = {
   create,
@@ -72,4 +93,5 @@ export const BookingController = {
   hostBookings,
   checkInController,
   checkOutController,
+  isCancelledController,
 };
