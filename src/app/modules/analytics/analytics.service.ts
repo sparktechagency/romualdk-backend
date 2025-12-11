@@ -6,12 +6,12 @@ import { User } from "../user/user.model";
 
 const statCountsFromDB = async () => {
   const [users, cars] = await Promise.all([
-    await User.countDocuments({
+    User.countDocuments({
       verified: true,
       status: STATUS.ACTIVE,
       role: USER_ROLES.HOST || USER_ROLES.USER,
     }),
-    await Car.countDocuments({
+    Car.countDocuments({
       verificationStatus: CAR_VERIFICATION_STATUS.APPROVED,
     }),
   ]);
@@ -21,6 +21,7 @@ const statCountsFromDB = async () => {
     cars,
   };
 };
+
 
 const getGuestHostYearlyChart = async (year?: number) => {
   const currentYear = new Date().getUTCFullYear();
@@ -39,7 +40,6 @@ const getGuestHostYearlyChart = async (year?: number) => {
             hostStatus: HOST_STATUS.NONE,
           },
           {
-            // role: USER_ROLES.HOST,
             hostStatus: HOST_STATUS.APPROVED,
           },
         ],
@@ -54,6 +54,7 @@ const getGuestHostYearlyChart = async (year?: number) => {
         total: { $sum: 1 },
       },
     },
+
     {
       $group: {
         _id: "$_id.month",
@@ -84,7 +85,10 @@ const getGuestHostYearlyChart = async (year?: number) => {
     };
   });
 
-  return { year: targetYear, chart };
+  return {
+    year: targetYear,
+    chart
+  };
 };
 
 export const AnalyticsServices = {

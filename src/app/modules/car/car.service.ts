@@ -299,7 +299,6 @@ const updateCarByIdToDB = async (
 
     return updated;
   }
-
   // -------------------------- Handle normal updates --------------------------
   const cleanPayload = removeUndefined(payload);
 
