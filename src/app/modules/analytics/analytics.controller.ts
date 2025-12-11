@@ -3,6 +3,7 @@ import sendResponse from "../../../shared/sendResponse";
 import { AnalyticsServices } from "./analytics.service";
 
 const statCounts = catchAsync(async (req, res) => {
+<<<<<<< HEAD
   const result = await AnalyticsServices.statCountsFromDB();
   sendResponse(res, {
     success: true,
@@ -30,3 +31,17 @@ export const AnalyticsControllers = {
   statCounts,
   getYearlyGuestHostChart,
 };
+=======
+    const result = await AnalyticsServices.statCountsFromDB();
+    sendResponse(res, {
+        success: true,
+        statusCode: 200,
+        message: "Successfully retrieved stat counts",
+        data: result,
+    })
+})
+
+export const AnalyticsControllers = {
+    statCounts
+}
+>>>>>>> clean-payment

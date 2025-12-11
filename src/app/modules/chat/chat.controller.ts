@@ -42,7 +42,11 @@ const getChats = catchAsync(async (req, res) => {
       unreadChatsCount: result.unreadChatsCount,
       totalUnreadMessages: result.totalUnreadMessages,
     },
+<<<<<<< HEAD
     meta: result.meta,
+=======
+    meta: result.meta, 
+>>>>>>> clean-payment
   });
 });
 
@@ -72,6 +76,13 @@ const deleteChat = catchAsync(async (req, res) => {
   });
 });
 
+<<<<<<< HEAD
+=======
+
+
+
+
+>>>>>>> clean-payment
 export const ChatController = {
   createChat,
   getChats,

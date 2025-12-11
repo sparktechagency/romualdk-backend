@@ -7,6 +7,7 @@ import parseAllFilesData from "../../middlewares/parseAllFileData";
 
 const router = express.Router();
 
+<<<<<<< HEAD
 router
   .route("/")
   .post(
@@ -81,3 +82,48 @@ router
   .delete(auth(USER_ROLES.HOST), CarControllers.deleteCarById);
 
 export const CarRoutes = router;
+=======
+
+router.route("/")
+    .post(
+        auth(USER_ROLES.HOST),
+        fileUploadHandler(),
+        parseAllFilesData(
+            { fieldName: "carRegistrationPaperFrontPic", forceSingle: true },
+            { fieldName: "carRegistrationPaperBackPic", forceSingle: true },
+            { fieldName: "images", forceMultiple: true },
+        ),
+        CarControllers.createCar)
+    .get(auth(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN, USER_ROLES.HOST, USER_ROLES.USER), CarControllers.getAllCars)
+
+
+router.get("/my", auth(USER_ROLES.HOST), CarControllers.getOwnCars);
+
+router.get("/availability/:carId", CarControllers.getAvailability)
+
+router.patch("/blocked/:carId", auth(USER_ROLES.HOST), CarControllers.createCarBlockedDates);
+
+router.get("/verification", auth(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN), CarControllers.getAllCarsForVerifications)
+
+router.patch("/verification/status/:carId", auth(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN), CarControllers.updateCarVerificationStatusById)
+
+
+router.route("/:id")
+    .get(auth(USER_ROLES.ADMIN, USER_ROLES.HOST, USER_ROLES.SUPER_ADMIN, USER_ROLES.USER), CarControllers.getCarById)
+    .patch(
+        auth(USER_ROLES.HOST),
+        fileUploadHandler(),
+        parseAllFilesData(
+            { fieldName: "carRegistrationPaperFrontPic", forceSingle: true },
+            { fieldName: "carRegistrationPaperBackPic", forceSingle: true },
+            { fieldName: "images", forceMultiple: true },
+        ),
+        CarControllers.updateCarById
+    )
+    .delete(auth(USER_ROLES.HOST), CarControllers.deleteCarById)
+
+
+
+
+export const CarRoutes = router;
+>>>>>>> clean-payment
