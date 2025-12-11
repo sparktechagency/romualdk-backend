@@ -1,20 +1,8 @@
 import { Types } from "mongoose";
-<<<<<<< HEAD
-import { HOST_STATUS, USER_ROLES } from "../../../enums/user";
-import ApiError from "../../../errors/ApiErrors";
-import { User } from "../user/user.model";
-import {
-  AVAILABLE_DAYS,
-  CAR_VERIFICATION_STATUS,
-  IBlockedDate,
-  ICar,
-} from "./car.interface";
-=======
 import { HOST_STATUS, USER_ROLES } from "../../../enums/user"
 import ApiError from "../../../errors/ApiErrors";
 import { User } from "../user/user.model"
 import { AVAILABLE_DAYS, CAR_VERIFICATION_STATUS, IBlockedDate, ICar } from "./car.interface";
->>>>>>> clean-payment
 import { Car } from "./car.model";
 import QueryBuilder from "../../builder/queryBuilder";
 import { FavouriteCar } from "../favouriteCar/favouriteCar.model";
@@ -22,45 +10,17 @@ import { ReviewServices } from "../review/review.service";
 import { REVIEW_TYPE } from "../review/review.interface";
 
 const createCarToDB = async (userId: string, payload: ICar) => {
-<<<<<<< HEAD
-  const user = await User.findOne({
-    _id: userId,
-    hostStatus: HOST_STATUS.APPROVED,
-    role: USER_ROLES.HOST,
-  });
-
-  if (!user) {
-    throw new ApiError(400, "No user found by this Id");
-  }
-=======
   const user = await User.findOne({ _id: userId, hostStatus: HOST_STATUS.APPROVED, role: USER_ROLES.HOST });
 
   if (!user) {
     throw new ApiError(400, "No user found by this Id")
   };
->>>>>>> clean-payment
 
   payload.userId = new Types.ObjectId(userId);
 
   const result = await Car.create(payload);
 
   if (!result) {
-<<<<<<< HEAD
-    throw new ApiError(400, "Failed to create a car");
-  }
-
-  return result;
-};
-
-// for feed
-const getAllCarsFromDB = async (query: any, userId: string) => {
-  const baseQuery = Car.find({
-    verificationStatus: CAR_VERIFICATION_STATUS.APPROVED,
-  }).populate({
-    path: "userId",
-    select: "firstName lastName fullName role profileImage email phone",
-  });
-=======
     throw new ApiError(400, "Failed to create a car")
   };
 
@@ -73,7 +33,6 @@ const getAllCarsFromDB = async (query: any, userId: string) => {
 
   const baseQuery = Car.find({ verificationStatus: CAR_VERIFICATION_STATUS.APPROVED }).populate({ path: "userId", select: "firstName lastName fullName role profileImage email phone" });
 
->>>>>>> clean-payment
 
   const queryBuilder = new QueryBuilder(baseQuery, query)
     .search(["brand", "model", "transmission", "color", "city", "licensePlate"])
@@ -82,10 +41,6 @@ const getAllCarsFromDB = async (query: any, userId: string) => {
     .filter()
     .paginate();
 
-<<<<<<< HEAD
-=======
-
->>>>>>> clean-payment
   const cars = await queryBuilder.modelQuery;
 
   const carsWithBookmark = await Promise.all(
@@ -95,14 +50,7 @@ const getAllCarsFromDB = async (query: any, userId: string) => {
         referenceId: car._id,
       });
 
-<<<<<<< HEAD
-      const reviewSummary = await ReviewServices.getReviewSummaryFromDB(
-        car.id,
-        REVIEW_TYPE.CAR,
-      );
-=======
       const reviewSummary = await ReviewServices.getReviewSummaryFromDB(car.id, REVIEW_TYPE.CAR)
->>>>>>> clean-payment
 
       return {
         ...car.toObject(),
@@ -112,16 +60,6 @@ const getAllCarsFromDB = async (query: any, userId: string) => {
         starCounts: reviewSummary.starCounts,
         reviews: reviewSummary.reviews,
       };
-<<<<<<< HEAD
-    }),
-  );
-
-  const meta = await queryBuilder.countTotal();
-
-  if (!cars || cars.length === 0) {
-    throw new ApiError(404, "No cars are found in the database");
-  }
-=======
     })
   );
 
@@ -132,30 +70,10 @@ const getAllCarsFromDB = async (query: any, userId: string) => {
   if (!cars || cars.length === 0) {
     throw new ApiError(404, "No cars are found in the database")
   };
->>>>>>> clean-payment
 
   return {
     data: carsWithBookmark,
     meta,
-<<<<<<< HEAD
-  };
-};
-
-// for verifications, dashboard
-const getAllCarsForVerificationsFromDB = async (query: any) => {
-  const baseQuery = Car.find({
-    verificationStatus: {
-      $in: [
-        CAR_VERIFICATION_STATUS.PENDING,
-        CAR_VERIFICATION_STATUS.REJECTED,
-        CAR_VERIFICATION_STATUS.APPROVED,
-      ],
-    },
-  }).populate({
-    path: "userId",
-    select: "firstName lastName fullName role email phone profileImage",
-  });
-=======
   }
 }
 
@@ -165,7 +83,6 @@ const getAllCarsForVerificationsFromDB = async (query: any) => {
   const baseQuery = Car.find({
     verificationStatus: { $in: [CAR_VERIFICATION_STATUS.PENDING, CAR_VERIFICATION_STATUS.REJECTED, CAR_VERIFICATION_STATUS.APPROVED] }
   }).populate({ path: "userId", select: "firstName lastName fullName role email phone profileImage" });
->>>>>>> clean-payment
 
   const queryBuilder = new QueryBuilder(baseQuery, query)
     .search(["brand", "model", "transmission", "color", "city", "licensePlate"])
@@ -178,78 +95,14 @@ const getAllCarsForVerificationsFromDB = async (query: any) => {
 
   const meta = await queryBuilder.countTotal();
 
-<<<<<<< HEAD
-  if (!cars || cars.length === 0) {
-    throw new ApiError(404, "No cars are found in the database");
-  }
-=======
 
   if (!cars || cars.length === 0) {
     throw new ApiError(404, "No cars are found in the database")
   };
->>>>>>> clean-payment
 
   return {
     data: cars,
     meta,
-<<<<<<< HEAD
-  };
-};
-
-const updateCarVerificationStatusByIdToDB = async (
-  carId: string,
-  carVerificationStatus:
-    | CAR_VERIFICATION_STATUS.APPROVED
-    | CAR_VERIFICATION_STATUS.PENDING
-    | CAR_VERIFICATION_STATUS.REJECTED,
-) => {
-  if (
-    ![
-      CAR_VERIFICATION_STATUS.PENDING,
-      CAR_VERIFICATION_STATUS.APPROVED,
-      CAR_VERIFICATION_STATUS.REJECTED,
-    ].includes(carVerificationStatus)
-  ) {
-    throw new ApiError(
-      400,
-      "Car verification status must be either 'PENDING','APPROVED' or 'REJECTED'",
-    );
-  }
-  console.log(carVerificationStatus, "STATUS");
-
-  const result = await Car.findByIdAndUpdate(
-    carId,
-    { verificationStatus: carVerificationStatus },
-    { new: true },
-  );
-
-  if (!result) {
-    throw new ApiError(
-      400,
-      "Failed to change car verification status by this car ID",
-    );
-  }
-
-  return result;
-};
-
-// for host role
-const getOwnCarsFromDB = async (userId: string) => {
-  const user = await User.findOne({
-    _id: userId,
-    role: USER_ROLES.HOST,
-    hostStatus: HOST_STATUS.APPROVED,
-  });
-
-  if (!user) {
-    throw new ApiError(404, "No hosts are found by this ID");
-  }
-
-  const result = await Car.find({ userId }).populate({
-    path: "userId",
-    select: "firstName lastName fullName role profileImage email phone",
-  });
-=======
   }
 }
 
@@ -279,7 +132,6 @@ const getOwnCarsFromDB = async (userId: string) => {
   };
 
   const result = await Car.find({ userId }).populate({ path: "userId", select: "firstName lastName fullName role profileImage email phone" });
->>>>>>> clean-payment
 
   const carsWithBookmark = await Promise.all(
     result.map(async (car: any) => {
@@ -288,15 +140,8 @@ const getOwnCarsFromDB = async (userId: string) => {
         referenceId: car._id,
       });
 
-<<<<<<< HEAD
-      const reviewSummary = await ReviewServices.getReviewSummaryFromDB(
-        car.id,
-        REVIEW_TYPE.CAR,
-      );
-=======
       const reviewSummary = await ReviewServices.getReviewSummaryFromDB(car.id, REVIEW_TYPE.CAR)
 
->>>>>>> clean-payment
 
       return {
         ...car.toObject(),
@@ -306,23 +151,6 @@ const getOwnCarsFromDB = async (userId: string) => {
         starCounts: reviewSummary.starCounts,
         reviews: reviewSummary.reviews,
       };
-<<<<<<< HEAD
-    }),
-  );
-
-  if (!result || result.length === 0) {
-    return [];
-  }
-
-  return carsWithBookmark;
-};
-
-const getCarByIdFromDB = async (id: string, userId: string) => {
-  const result = await Car.findById(id).populate({
-    path: "userId",
-    select: "firstName lastName fullName role profileImage email phone",
-  });
-=======
     })
   );
 
@@ -336,30 +164,18 @@ const getCarByIdFromDB = async (id: string, userId: string) => {
 
 const getCarByIdFromDB = async (id: string, userId: string) => {
   const result = await Car.findById(id).populate({ path: "userId", select: "firstName lastName fullName role profileImage email phone" });
->>>>>>> clean-payment
 
   const isBookmarked = await FavouriteCar.exists({
     userId,
     referenceId: id,
   });
 
-<<<<<<< HEAD
-  const reviewSummary = await ReviewServices.getReviewSummaryFromDB(
-    id,
-    REVIEW_TYPE.CAR,
-  );
-
-  if (!result) {
-    return {};
-  }
-=======
   const reviewSummary = await ReviewServices.getReviewSummaryFromDB(id, REVIEW_TYPE.CAR)
 
 
   if (!result) {
     return {}
   };
->>>>>>> clean-payment
 
   return {
     ...result.toObject(),
@@ -368,14 +184,6 @@ const getCarByIdFromDB = async (id: string, userId: string) => {
     totalReviews: reviewSummary.totalReviews,
     starCounts: reviewSummary.starCounts,
     reviews: reviewSummary.reviews,
-<<<<<<< HEAD
-  };
-};
-
-const removeUndefined = <T extends Record<string, any>>(obj: T): Partial<T> =>
-  Object.fromEntries(
-    Object.entries(obj).filter(([_, v]) => v !== undefined && v !== null),
-=======
   };;
 
 }
@@ -383,20 +191,10 @@ const removeUndefined = <T extends Record<string, any>>(obj: T): Partial<T> =>
 const removeUndefined = <T extends Record<string, any>>(obj: T): Partial<T> =>
   Object.fromEntries(
     Object.entries(obj).filter(([_, v]) => v !== undefined && v !== null)
->>>>>>> clean-payment
   ) as Partial<T>;
 
 enum ACTION {
   ADD = "ADD",
-<<<<<<< HEAD
-  DELETE = "DELETE",
-}
-
-interface IArrayAction {
-  field: string; // e.g. "facilities"
-  action: ACTION; // add/remove
-  value: string; // single item
-=======
   DELETE = "DELETE"
 }
 
@@ -404,17 +202,12 @@ interface IArrayAction {
   field: string;            // e.g. "facilities"
   action: ACTION // add/remove
   value: string;            // single item
->>>>>>> clean-payment
 }
 
 const updateCarByIdToDB = async (
   userId: string,
   carId: string,
-<<<<<<< HEAD
-  payload: Partial<ICar> & { arrayAction?: IArrayAction },
-=======
   payload: Partial<ICar> & { arrayAction?: IArrayAction }
->>>>>>> clean-payment
 ) => {
   // -------------------------- Check host --------------------------
   const user = await User.findOne({
@@ -445,20 +238,12 @@ const updateCarByIdToDB = async (
       updateQuery = { $pull: { [field]: value } };
     }
 
-<<<<<<< HEAD
-=======
-
->>>>>>> clean-payment
     delete payload.arrayAction;
 
     const updated = await Car.findOneAndUpdate(
       { _id: carId, userId },
       updateQuery,
-<<<<<<< HEAD
-      { new: true },
-=======
       { new: true }
->>>>>>> clean-payment
     );
 
     return updated;
@@ -466,20 +251,12 @@ const updateCarByIdToDB = async (
   // -------------------------- Handle normal updates --------------------------
   const cleanPayload = removeUndefined(payload);
 
-<<<<<<< HEAD
-=======
-
->>>>>>> clean-payment
   delete (cleanPayload as any).userId;
 
   const updated = await Car.findOneAndUpdate(
     { _id: carId, userId },
     cleanPayload,
-<<<<<<< HEAD
-    { new: true },
-=======
     { new: true }
->>>>>>> clean-payment
   );
 
   return updated;
@@ -500,62 +277,16 @@ const deleteCarByIdFromDB = async (userId: string, id: string) => {
   const result = await Car.findByIdAndDelete(id);
 
   if (!result) {
-<<<<<<< HEAD
-    throw new ApiError(400, "Failed to delete car by this ID");
-  }
-
-  return result;
-};
-=======
     throw new ApiError(400, "Failed to delete car by this ID")
   };
 
   return result;
 }
 
->>>>>>> clean-payment
 
 const getAvailability = async (carId: string, dateString: string) => {
   const targetDate = new Date(dateString);
   const normalizedDate = new Date(
-<<<<<<< HEAD
-    Date.UTC(
-      targetDate.getUTCFullYear(),
-      targetDate.getUTCMonth(),
-      targetDate.getUTCDate(),
-    ),
-  );
-
-  const car = await Car.findById(carId).select(
-    "isActive availableDays availableHours defaultStartTime defaultEndTime blockedDates",
-  );
-
-  if (!car) throw new ApiError(404, "Car not found");
-  if (!car.isActive)
-    return generateBlockedResponse(normalizedDate, "Car is not active");
-
-  // manual block with host reason
-  const blockedEntry = car.blockedDates?.find(
-    (b: any) =>
-      new Date(b.date).toISOString().split("T")[0] ===
-      normalizedDate.toISOString().split("T")[0],
-  );
-  if (blockedEntry)
-    return generateBlockedResponse(
-      normalizedDate,
-      blockedEntry.reason || "Blocked by host",
-    );
-
-  // days check
-  const dayName = normalizedDate
-    .toLocaleDateString("en-US", { weekday: "long" })
-    .toUpperCase() as AVAILABLE_DAYS;
-  if (!car.availableDays.includes(dayName)) {
-    return generateBlockedResponse(
-      normalizedDate,
-      "Car not available on this day",
-    );
-=======
     Date.UTC(targetDate.getUTCFullYear(), targetDate.getUTCMonth(), targetDate.getUTCDate())
   );
 
@@ -576,7 +307,6 @@ const getAvailability = async (carId: string, dateString: string) => {
   const dayName = normalizedDate.toLocaleDateString("en-US", { weekday: "long" }).toUpperCase() as AVAILABLE_DAYS;
   if (!car.availableDays.includes(dayName)) {
     return generateBlockedResponse(normalizedDate, "Car not available on this day");
->>>>>>> clean-payment
   }
 
   // availableHours string[] → number[] convert
@@ -642,20 +372,10 @@ const generateBlockedResponse = (date: Date, reason: string) => ({
 const createCarBlockedDatesToDB = async (
   carId: string,
   userId: string,
-<<<<<<< HEAD
-  payload: IBlockedDate[],
-) => {
-  // Ensure host exists
-  const user = await User.findOne({
-    _id: userId,
-    role: USER_ROLES.HOST,
-  }).select("_id");
-=======
   payload: IBlockedDate[]
 ) => {
   // Ensure host exists
   const user = await User.findOne({ _id: userId, role: USER_ROLES.HOST }).select("_id");
->>>>>>> clean-payment
   if (!user) throw new ApiError(400, "No user found by this Id");
 
   // Ensure car belongs to this host
@@ -668,30 +388,18 @@ const createCarBlockedDatesToDB = async (
   // Normalize & remove duplicates by date
   const normalized = Array.from(
     new Map(
-<<<<<<< HEAD
-      combined.map((item) => [
-        new Date(item.date).toISOString().split("T")[0], // unique key YYYY-MM-DD
-        { date: new Date(item.date), reason: item.reason || "" },
-      ]),
-    ).values(),
-=======
       combined.map(item => [
         new Date(item.date).toISOString().split("T")[0], // unique key YYYY-MM-DD
         { date: new Date(item.date), reason: item.reason || "" }
       ])
     ).values()
->>>>>>> clean-payment
   );
 
   // Update DB
   const result = await Car.findByIdAndUpdate(
     carId,
     { blockedDates: normalized },
-<<<<<<< HEAD
-    { new: true },
-=======
     { new: true }
->>>>>>> clean-payment
   );
 
   if (!result) throw new ApiError(400, "Failed to update blocked dates");
@@ -699,7 +407,6 @@ const createCarBlockedDatesToDB = async (
   return result;
 };
 
-<<<<<<< HEAD
 const getSuggestedCarsFromDB = async (userId: string, limit: number = 10) => {
   const user = await User.findById(userId).select("location").lean();
 
@@ -803,8 +510,7 @@ const getSuggestedCarsFromDB = async (userId: string, limit: number = 10) => {
 
   return cars;
 };
-=======
->>>>>>> clean-payment
+
 
 export const CarServices = {
   createCarToDB,
@@ -817,9 +523,5 @@ export const CarServices = {
   createCarBlockedDatesToDB,
   getAllCarsForVerificationsFromDB,
   updateCarVerificationStatusByIdToDB,
-<<<<<<< HEAD
-  getSuggestedCarsFromDB,
-};
-=======
+  getSuggestedCarsFromDB
 }
->>>>>>> clean-payment

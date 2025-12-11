@@ -1,7 +1,6 @@
 import { Types } from "mongoose";
 
 export enum AVAILABLE_DAYS {
-<<<<<<< HEAD
   SATURDAY = "SATURDAY",
   SUNDAY = "SUNDAY",
   MONDAY = "MONDAY",
@@ -9,45 +8,24 @@ export enum AVAILABLE_DAYS {
   WEDNESDAY = "WEDNESDAY",
   THURSDAY = "THURSDAY",
   FRIDAY = "FRIDAY",
-=======
-  SATURDAY = 'SATURDAY',
-  SUNDAY = 'SUNDAY',
-  MONDAY = 'MONDAY',
-  TUESDAY = 'TUESDAY',
-  WEDNESDAY = 'WEDNESDAY',
-  THURSDAY = 'THURSDAY',
-  FRIDAY = 'FRIDAY',
->>>>>>> clean-payment
 }
 
 export enum FUEL_TYPE {
   PETROL = "PETROL",
   DISEL = "DISEL",
   ELECTRIC = "ELECTRIC",
-<<<<<<< HEAD
   HYBRID = "HYBRID",
-=======
-  HYBRID = "HYBRID"
->>>>>>> clean-payment
 }
 
 export enum TRANSMISSION {
   MANUAL = "MANUAL",
-<<<<<<< HEAD
   AUTOMATIC = "AUTOMATIC",
-=======
-  AUTOMATIC = "AUTOMATIC"
->>>>>>> clean-payment
 }
 
 export enum CAR_VERIFICATION_STATUS {
   PENDING = "PENDING",
   APPROVED = "APPROVED",
-<<<<<<< HEAD
   REJECTED = "REJECTED",
-=======
-  REJECTED = "REJECTED"
->>>>>>> clean-payment
 }
 
 export interface IBlockedDate {
@@ -86,12 +64,6 @@ export interface ICar {
   facilities: string[];
   blockedDates?: IBlockedDate[];
   defaultStartTime?: string; // e.g., "09:00"
-<<<<<<< HEAD
   defaultEndTime?: string; // e.g., "21:00"
   isActive: boolean;
 }
-=======
-  defaultEndTime?: string;   // e.g., "21:00"
-  isActive: boolean;
-}
->>>>>>> clean-payment
