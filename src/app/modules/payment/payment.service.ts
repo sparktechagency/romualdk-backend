@@ -7,10 +7,10 @@ import { Transaction, TransactionStatus, PaymentMethod } from "./transaction.mod
 import { BOOKING_STATUS, CAR_STATUS } from "../booking/booking.interface";
 import { InitiatePaymentDto } from "./payment.interface";
 
-export const createCheckoutSession = async (input: InitiatePaymentDto) => {
+const createCheckoutSession = async (input: InitiatePaymentDto) => {
   const { bookingId, customerEmail, customerName, customerPhone } = input;
 
-  const booking = await Booking.findById(bookingId);
+  const booking = await Booking.findById(bookingId).populate("carId");
   if (!booking) throw new Error("Booking not found");
   if (booking.status !== BOOKING_STATUS.PENDING)
     throw new Error("Booking already paid or canceled");
@@ -28,8 +28,8 @@ export const createCheckoutSession = async (input: InitiatePaymentDto) => {
         price_data: {
           currency: "xof",
           product_data: {
-            name: "Car Rental Booking",
-            description: `Booking #${bookingId}`,
+          name: `${(booking.carId as any).brand} ${(booking.carId as any).model} (${(booking.carId as any).licensePlate})`,
+          description: `Booking ID is #${bookingId} for ${(booking.carId as any).brand}, ${(booking.carId as any).model}, ${(booking.carId as any).year}, ${(booking.carId as any).color}`,
           },
           unit_amount: Math.round(booking.totalAmount * 100),
         },
@@ -66,7 +66,7 @@ export const createCheckoutSession = async (input: InitiatePaymentDto) => {
   };
 };
 
-export const handleWebhook = async (rawBody: Buffer, sig: string) => {
+const handleWebhook = async (rawBody: Buffer, sig: string) => {
   let event: Stripe.Event;
 
   try {
@@ -106,11 +106,17 @@ export const handleWebhook = async (rawBody: Buffer, sig: string) => {
         }
       );
 
-      console.log(`Payment Success! Booking ${bookingId} is now PAID`);
       return true;
     }
   }
 
   return false;
+};
+
+// -------- Export as object ----------
+
+export const PaymentService = {
+  createCheckoutSession,
+  handleWebhook,
 };
  

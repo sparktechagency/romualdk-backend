@@ -1,94 +1,100 @@
 import { Request, Response } from "express";
+import catchAsync from "../../../shared/catchAsync";
+import sendResponse from "../../../shared/sendResponse";
 import { BookingService } from "./booking.service";
 
-const create = async (req: Request, res: Response) => {
-  try {
-    const userId = (req as any).user._id || (req as any).user.id;
-    const booking = await BookingService.createBooking(req.body, userId);
+const createBooking = catchAsync(async (req: Request, res: Response) => {
+  const userId = (req as any).user._id || (req as any).user.id;
+  const payload = req.body;
 
-    res.status(201).json({
-      success: true,
-      message: "Booking created successfully!",
-      data: booking,
-    });
-  } catch (error: any) {
-    res.status(400).json({ success: false, message: error.message });
-  }
-};
+  const result = await BookingService.createBooking(payload, userId);
 
-const myBookings = async (req: Request, res: Response) => {
-  try {
-    const userId = (req as any).user.id;
-    const status = req.query.status as string;
-
-    const bookings = await BookingService.getUserBookings(userId, status);
-
-    res.json({ success: true, data: bookings });
-  } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
+  sendResponse(res, {
+    statusCode: 201,
+    success: true,
+    message: "Booking created successfully!",
+    data: result,
+  });
+});
 
 
- 
-const hostBookings = async (req: Request, res: Response) => {
-  try {
-    const userId = (req as any).user.id;
-    const bookings = await BookingService.getHostBookings(userId);
+/* -------------------- User Bookings -------------------- */
+const myBookings = catchAsync(async (req: Request, res: Response) => {
+  const userId = (req as any).user.id;
+  const status = req.query.status as string;
 
-    res.json({ success: true, data: bookings });
-  } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
+  const result = await BookingService.getUserBookings(userId, status);
 
-const checkInController = async (req: Request, res: Response) => {
-  try {
-    const bookingId = req.params.id;
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "User bookings retrieved successfully",
+    data: result,
+  });
+});
 
-    const updated = await BookingService.checkIn(bookingId);
+/* -------------------- Host Bookings -------------------- */
+const hostBookings = catchAsync(async (req: Request, res: Response) => {
+  const userId = (req as any).user.id;
+  const status = req.query.status as string;
 
-    res.json({
-      success: true,
-      message: "Checked in successfully!",
-      data: updated,
-    });
-  } catch (e: any) {
-    res.status(400).json({ success: false, message: e.message });
-  }
-};
+  const result = await BookingService.getHostBookings(userId, status);
 
-const checkOutController = async (req: Request, res: Response) => {
-  try {
-    const bookingId = req.params.id;
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Host bookings retrieved successfully",
+    data: result,
+  });
+});
 
-    const updated = await BookingService.checkOut(bookingId);
+/* -------------------- Check-in -------------------- */
+const checkInController = catchAsync(async (req: Request, res: Response) => {
+  const bookingId = req.params.id;
 
-    res.json({
-      success: true,
-      message: "Checked out successfully!",
-      data: updated,
-    });
-  } catch (e: any) {
-    res.status(400).json({ success: false, message: e.message });
-  }
-};
+  const result = await BookingService.checkIn(bookingId);
 
-const isCancelledController = async (req: Request, res: Response) => {
-  try {
-    const bookingId = req.params.id;
-    const cancelled = await BookingService.isCancelled(bookingId);
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Checked in successfully!",
+    data: result,
+  });
+});
 
-    res.json({ success: true, data: { isCancelled: cancelled } });
-  } catch (e: any) {
-    res.status(400).json({ success: false, message: e.message });
-  }
-};
+/* -------------------- Check-out -------------------- */
+const checkOutController = catchAsync(async (req: Request, res: Response) => {
+  const bookingId = req.params.id;
+
+  const result = await BookingService.checkOut(bookingId);
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Checked out successfully!",
+    data: result,
+  });
+});
+
+/* -------------------- Cancel Booking -------------------- */
+const isCancelledController = catchAsync(async (req: Request, res: Response) => {
+  const bookingId = req.params.id;
+
+  const result = await BookingService.isCancelled(bookingId);
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Booking cancellation status updated",
+    data: { isCancelled: result },
+  });
+});
+
 
 // -------- Export as object ----------
 
 export const BookingController = {
-  create,
+  createBooking,
   myBookings,
   hostBookings,
   checkInController,

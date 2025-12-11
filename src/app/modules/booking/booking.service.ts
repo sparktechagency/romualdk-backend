@@ -1,36 +1,22 @@
 import { Booking } from "./booking.model";
 import { Car } from "../car/car.model";
 import { BOOKING_STATUS, CAR_STATUS, Driver_STATUS } from "./booking.interface";
-import { Types } from "mongoose";
-
-// -------- Price Calculation ----------
-const calculatePrice = (fromDate: string, toDate: string, type: string) => {
-  const from = new Date(fromDate);
-  const to = new Date(toDate);
-
-  const days =
-    Math.ceil((to.getTime() - from.getTime()) / (1000 * 60 * 60 * 24)) || 1;
-
-  const baseRate = 120;
-  const driverFee = type === "withDriver" ? 125 : 0;
-
-  return days * baseRate + driverFee;
-};
+import { calculatePrice } from "../../../util/bookingCalculation";
 
 // -------- Create Booking ----------
 const createBooking = async (body: any, userId: string) => {
   const { carId, fromDate, toDate, type } = body;
-  console.log(body);
-
   const car = await Car.findById(carId);
   if (!car) throw new Error("Car not found");
-
-  const totalAmount = calculatePrice(fromDate, toDate, type);
+  const dayHour = calculatePrice(fromDate, toDate);
+  const dailyPrice = car.dailyPrice ?? 0;
+  const hourlyPrice = car.hourlyPrice ?? 0;
+  const totalAmount = dayHour.days * dailyPrice + dayHour.hours * hourlyPrice;
 
   const booking = await Booking.create({
-    carId: new Types.ObjectId(carId),
-    userId: new Types.ObjectId(userId),
-    hostId: new Types.ObjectId(car.userId),
+    carId,
+    userId,
+    hostId: car.userId,
     fromDate: new Date(fromDate),
     toDate: new Date(toDate),
     totalAmount,
@@ -38,16 +24,11 @@ const createBooking = async (body: any, userId: string) => {
     type: type || Driver_STATUS.WITHOUTDRIVER,
   });
 
-  // return booking.populate([
-  //   { path: "carId" },
-  // { path: "userId" },
-  // { path: "hostId" },
-  // ]);
   return booking;
 };
 
 // -------- Get user bookings ----------
- 
+
 const getUserBookings = async (userId: string, status?: string) => {
   const filter: any = { userId };
 
@@ -60,12 +41,15 @@ const getUserBookings = async (userId: string, status?: string) => {
     .sort({ createdAt: -1 });
 };
 
-
 // -------- Get host bookings ----------
-const getHostBookings = async (hostId: string) => {
-  return Booking.find({ hostId })
+const getHostBookings = async (hostId: string, status?: string) => {
+  const filter: any = { hostId };
+
+  if (status) filter.carStatus = status;
+  return Booking.find(filter)
     .populate("carId")
     .populate("userId")
+    .populate("transactionId")
     .sort({ createdAt: -1 });
 };
 
@@ -110,7 +94,7 @@ const checkOut = async (bookingId: string) => {
 const isCancelled = async (bookingId: string) => {
   const booking = await Booking.findById(bookingId);
   if (!booking) throw new Error("Booking not found");
-  
+
   if (
     // booking.status === BOOKING_STATUS.PAID &&
     !booking.checkIn &&
@@ -119,11 +103,9 @@ const isCancelled = async (bookingId: string) => {
   ) {
     booking.isCancelled = true;
     booking.carStatus = CAR_STATUS.CANCELLED;
-  }
-  else {
+  } else {
     throw new Error("Cannot cancel this booking");
   }
-
 
   return booking.save();
 };
