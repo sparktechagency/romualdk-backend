@@ -6,6 +6,7 @@ import router from "../src/app/routes";
 import globalErrorHandler from "./app/middlewares/globalErrorHandler";
 import path from "path";
 import { PaymentController } from "./app/modules/payment/payment.controller";
+import { globalRateLimiter } from "./app/middlewares/rateLimiter";
 
 
 
@@ -31,6 +32,13 @@ app.post(
 app.use(express.json());
 
 app.use(express.urlencoded({ extended: true }));
+
+ 
+//  GLOBAL RATE LIMITER — EXACT PLACE
+ 
+app.use(globalRateLimiter);
+
+ 
 
 //file retrieve
 app.use(express.static("uploads"));

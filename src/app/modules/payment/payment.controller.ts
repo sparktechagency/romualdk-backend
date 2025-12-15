@@ -36,7 +36,7 @@ const stripeWebhook = catchAsync(async (req: Request, res: Response) => {
 });
 
 const success = catchAsync(async (_req: Request, res: Response) => {
-  res.redirect("myapp://payment-success");
+  res.redirect("myapp://payment-success"); 
 });
 
 const cancel = catchAsync(async (_req: Request, res: Response) => {
