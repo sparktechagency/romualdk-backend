@@ -8,6 +8,8 @@ import QueryBuilder from "../../builder/queryBuilder";
 import { FavouriteCar } from "../favouriteCar/favouriteCar.model";
 import { ReviewServices } from "../review/review.service";
 import { REVIEW_TYPE } from "../review/review.interface";
+import { Booking } from "../booking/booking.model";
+import { BOOKING_STATUS, IBooking } from "../booking/booking.interface";
 
 const createCarToDB = async (userId: string, payload: ICar) => {
   const user = await User.findOne({ _id: userId, hostStatus: HOST_STATUS.APPROVED, role: USER_ROLES.HOST });
@@ -284,70 +286,207 @@ const deleteCarByIdFromDB = async (userId: string, id: string) => {
 }
 
 
+// const getAvailability = async (carId: string, dateString: string) => {
+//   const targetDate = new Date(dateString);
+//   const normalizedDate = new Date(
+//     Date.UTC(targetDate.getUTCFullYear(), targetDate.getUTCMonth(), targetDate.getUTCDate())
+//   );
+
+//   const car = await Car.findById(carId).select(
+//     "isActive availableDays availableHours defaultStartTime defaultEndTime blockedDates"
+//   );
+
+//   if (!car) throw new ApiError(404, "Car not found");
+//   if (!car.isActive) return generateBlockedResponse(normalizedDate, "Car is not active");
+
+//   // manual block with host reason
+//   const blockedEntry = car.blockedDates?.find((b: any) =>
+//     new Date(b.date).toISOString().split("T")[0] === normalizedDate.toISOString().split("T")[0]
+//   );
+//   if (blockedEntry) return generateBlockedResponse(normalizedDate, blockedEntry.reason || "Blocked by host");
+
+//   // days check
+//   const dayName = normalizedDate.toLocaleDateString("en-US", { weekday: "long" }).toUpperCase() as AVAILABLE_DAYS;
+//   if (!car.availableDays.includes(dayName)) {
+//     return generateBlockedResponse(normalizedDate, "Car not available on this day");
+//   }
+
+//   // availableHours string[] → number[] convert
+//   let openHoursSet = new Set<number>();
+
+//   if (car.availableHours && car.availableHours.length > 0) {
+//     car.availableHours.forEach((timeStr: string) => {
+//       const hour = parseInt(timeStr.split(":")[0], 10);
+//       if (!isNaN(hour) && hour >= 0 && hour <= 23) {
+//         openHoursSet.add(hour);
+//       }
+//     });
+//   }
+//   // defaultStartTime/endTime
+//   else if (car.defaultStartTime && car.defaultEndTime) {
+//     const start = parseInt(car.defaultStartTime.split(":")[0], 10);
+//     let end = parseInt(car.defaultEndTime.split(":")[0], 10);
+//     const endHour = end === 0 ? 24 : end;
+
+//     for (let h = start; h < endHour; h++) {
+//       openHoursSet.add(h % 24);
+//     }
+//   }
+//   // fallback 24 hour slots
+//   else {
+//     for (let i = 0; i < 24; i++) openHoursSet.add(i);
+//   }
+
+//   // final slots
+//   const slots = Array.from({ length: 24 }, (_, hour) => {
+//     const isAvailable = openHoursSet.has(hour);
+//     return {
+//       hour,
+//       time: `${String(hour).padStart(2, "0")}:00`,
+//       isAvailable,
+//       blocked: !isAvailable,
+//       blockedReason: isAvailable ? null : "Outside operating hours",
+//     };
+//   });
+
+//   return {
+//     date: normalizedDate.toISOString().split("T")[0],
+//     isFullyBlocked: false,
+//     blockedReason: null,
+//     slots,
+//   };
+// };
+
+
+// const generateBlockedResponse = (date: Date, reason: string) => ({
+//   date: date.toISOString().split("T")[0],
+//   isFullyBlocked: true,
+//   blockedReason: reason,
+//   slots: Array.from({ length: 24 }, (_, hour) => ({
+//     hour,
+//     time: `${String(hour).padStart(2, "0")}:00`,
+//     isAvailable: false,
+//     blocked: true,
+//     blockedReason: reason,
+//   })),
+// });
+
 const getAvailability = async (carId: string, dateString: string) => {
+  // ---------- Normalize Date (UTC Day) ----------
   const targetDate = new Date(dateString);
   const normalizedDate = new Date(
-    Date.UTC(targetDate.getUTCFullYear(), targetDate.getUTCMonth(), targetDate.getUTCDate())
+    Date.UTC(
+      targetDate.getUTCFullYear(),
+      targetDate.getUTCMonth(),
+      targetDate.getUTCDate()
+    )
   );
 
+  // ---------- Fetch Car ----------
   const car = await Car.findById(carId).select(
     "isActive availableDays availableHours defaultStartTime defaultEndTime blockedDates"
   );
 
   if (!car) throw new ApiError(404, "Car not found");
-  if (!car.isActive) return generateBlockedResponse(normalizedDate, "Car is not active");
-
-  // manual block with host reason
-  const blockedEntry = car.blockedDates?.find((b: any) =>
-    new Date(b.date).toISOString().split("T")[0] === normalizedDate.toISOString().split("T")[0]
-  );
-  if (blockedEntry) return generateBlockedResponse(normalizedDate, blockedEntry.reason || "Blocked by host");
-
-  // days check
-  const dayName = normalizedDate.toLocaleDateString("en-US", { weekday: "long" }).toUpperCase() as AVAILABLE_DAYS;
-  if (!car.availableDays.includes(dayName)) {
-    return generateBlockedResponse(normalizedDate, "Car not available on this day");
+  if (!car.isActive) {
+    return generateBlockedResponse(normalizedDate, "Car is not active");
   }
 
-  // availableHours string[] → number[] convert
-  let openHoursSet = new Set<number>();
+  // ---------- Priority 1: Manual Full Day Block ----------
+  const blockedEntry = car.blockedDates?.find((b: any) =>
+    new Date(b.date).toISOString().split("T")[0] ===
+    normalizedDate.toISOString().split("T")[0]
+  );
 
-  if (car.availableHours && car.availableHours.length > 0) {
-    car.availableHours.forEach((timeStr: string) => {
-      const hour = parseInt(timeStr.split(":")[0], 10);
-      if (!isNaN(hour) && hour >= 0 && hour <= 23) {
-        openHoursSet.add(hour);
+  if (blockedEntry) {
+    return generateBlockedResponse(
+      normalizedDate,
+      blockedEntry.reason || "Blocked by host"
+    );
+  }
+
+  // ---------- Day Availability Check ----------
+  const dayName = normalizedDate
+    .toLocaleDateString("en-US", { weekday: "long" })
+    .toUpperCase() as AVAILABLE_DAYS;
+
+  if (car.availableDays?.length && !car.availableDays.includes(dayName)) {
+    return generateBlockedResponse(
+      normalizedDate,
+      "Car not available on this day"
+    );
+  }
+
+  // ---------- Priority 2: Define Operating Hours ----------
+  const openHoursSet = new Set<number>();
+
+  if (car.availableHours?.length) {
+    car.availableHours.forEach((t: string) => {
+      const h = parseInt(t.split(":")[0], 10);
+      if (!isNaN(h) && h >= 0 && h <= 23) {
+        openHoursSet.add(h);
       }
     });
-  }
-  // defaultStartTime/endTime
-  else if (car.defaultStartTime && car.defaultEndTime) {
+  } else if (car.defaultStartTime && car.defaultEndTime) {
     const start = parseInt(car.defaultStartTime.split(":")[0], 10);
-    let end = parseInt(car.defaultEndTime.split(":")[0], 10);
-    const endHour = end === 0 ? 24 : end;
+    const end = parseInt(car.defaultEndTime.split(":")[0], 10) || 24;
 
-    for (let h = start; h < endHour; h++) {
+    for (let h = start; h < end; h++) {
       openHoursSet.add(h % 24);
     }
-  }
-  // fallback 24 hour slots
-  else {
+  } else {
     for (let i = 0; i < 24; i++) openHoursSet.add(i);
   }
 
-  // final slots
+  // ---------- Priority 3: Booking Conflict ----------
+  const bookings = await Booking.find({
+    carId: new Types.ObjectId(carId),
+    status: { $in: [BOOKING_STATUS.PAID, BOOKING_STATUS.ONGOING] },
+    fromDate: { $lt: new Date(normalizedDate.getTime() + 86400000) },
+    toDate: { $gt: normalizedDate },
+  }).select("fromDate toDate");
+
+  const bookingBlockedHours = getBookingBlockedHours(
+    bookings,
+    normalizedDate
+  );
+
+  // ---------- Final Slot Generation ----------
   const slots = Array.from({ length: 24 }, (_, hour) => {
-    const isAvailable = openHoursSet.has(hour);
+    // 1️⃣ Outside operating hours
+    if (!openHoursSet.has(hour)) {
+      return {
+        hour,
+        time: `${String(hour).padStart(2, "0")}:00`,
+        isAvailable: false,
+        blocked: true,
+        blockedReason: "Outside operating hours",
+      };
+    }
+
+    // 2️⃣ Already booked (only if operating hour)
+    if (bookingBlockedHours.has(hour)) {
+      return {
+        hour,
+        time: `${String(hour).padStart(2, "0")}:00`,
+        isAvailable: false,
+        blocked: true,
+        blockedReason: "Already booked",
+      };
+    }
+
+    // 3️⃣ Available
     return {
       hour,
       time: `${String(hour).padStart(2, "0")}:00`,
-      isAvailable,
-      blocked: !isAvailable,
-      blockedReason: isAvailable ? null : "Outside operating hours",
+      isAvailable: true,
+      blocked: false,
+      blockedReason: null,
     };
   });
 
   return {
+    carId,
     date: normalizedDate.toISOString().split("T")[0],
     isFullyBlocked: false,
     blockedReason: null,
@@ -355,7 +494,60 @@ const getAvailability = async (carId: string, dateString: string) => {
   };
 };
 
-// ======================== HELPER FUNCTION ========================
+/**
+ * =========================
+ * HELPER: BOOKING HOURS
+ * =========================
+ */
+const getBookingBlockedHours = (bookings: any[], date: Date) => {
+  const blockedHours = new Set<number>();
+
+  const dayStart = new Date(
+    Date.UTC(
+      date.getUTCFullYear(),
+      date.getUTCMonth(),
+      date.getUTCDate(),
+      0,
+      0,
+      0
+    )
+  );
+
+  const dayEnd = new Date(
+    Date.UTC(
+      date.getUTCFullYear(),
+      date.getUTCMonth(),
+      date.getUTCDate(),
+      23,
+      59,
+      59
+    )
+  );
+
+  bookings.forEach((booking) => {
+    const start = new Date(
+      Math.max(booking.fromDate.getTime(), dayStart.getTime())
+    );
+    const end = new Date(
+      Math.min(booking.toDate.getTime(), dayEnd.getTime())
+    );
+
+    let current = new Date(start);
+
+    while (current < end) {
+      blockedHours.add(current.getUTCHours());
+      current.setUTCHours(current.getUTCHours() + 1);
+    }
+  });
+
+  return blockedHours;
+};
+
+/**
+ * =========================
+ * HELPER: FULL DAY BLOCK
+ * =========================
+ */
 const generateBlockedResponse = (date: Date, reason: string) => ({
   date: date.toISOString().split("T")[0],
   isFullyBlocked: true,
@@ -407,8 +599,118 @@ const createCarBlockedDatesToDB = async (
   return result;
 };
 
-const getSuggestedCarsFromDB = async (userId: string, limit: number = 10) => {
+// const getSuggestedCarsFromDB = async (userId: string, limit: number = 10) => {
+//   const user = await User.findById(userId).select("location").lean();
+
+//   let userLocation: [number, number] | undefined;
+//   if (
+//     user?.location?.coordinates &&
+//     Array.isArray(user.location.coordinates) &&
+//     user.location.coordinates.length === 2
+//   ) {
+//     const [lng, lat] = user.location.coordinates;
+//     if (lng !== 0 && lat !== 0) {
+//       userLocation = [lng, lat];
+//     }
+//   }
+
+//   const defaultLocation: [number, number] = [90.4074, 23.8103];
+//   const location = userLocation || defaultLocation;
+
+//   const maxDistance = 50000; // 50 km
+
+//   const cars = await Car.aggregate([
+//     {
+//       $geoNear: {
+//         near: { type: "Point", coordinates: location },
+//         distanceField: "distance",
+//         maxDistance,
+//         spherical: true,
+//         query: {
+//           isActive: true,
+//           verificationStatus: CAR_VERIFICATION_STATUS.APPROVED,
+//         },
+//       },
+//     },
+//     {
+//       $addFields: {
+//         distanceInKm: { $round: [{ $divide: ["$distance", 1000] }, 1] },
+//         ratingScore: {
+//           $cond: [
+//             { $gt: ["$totalReviews", 0] },
+//             { $divide: ["$averageRating", 5] },
+//             0.6,
+//           ],
+//         },
+//         proximityScore: {
+//           $divide: [1, { $add: [1, { $divide: ["$distance", 10000] }] }],
+//         },
+//       },
+//     },
+//     {
+//       $addFields: {
+//         recommendationScore: {
+//           $add: [
+//             { $multiply: ["$ratingScore", 0.6] },
+//             { $multiply: ["$proximityScore", 0.4] },
+//           ],
+//         },
+//       },
+//     },
+//     { $sort: { recommendationScore: -1 } },
+//     { $limit: limit + 5 },
+
+//     // Populate userId
+//     {
+//       $lookup: {
+//         from: "users",
+//         localField: "userId",
+//         foreignField: "_id",
+//         as: "userInfo",
+//       },
+//     },
+//     { $unwind: "$userInfo" },
+
+//     // replace userId with only firstName and lastName
+//     {
+//       $addFields: {
+//         userId: {
+//           _id: "$userInfo._id",
+//           firstName: "$userInfo.firstName",
+//           lastName: "$userInfo.lastName",
+//           email: "$userInfo.email",
+//           phone: "$userInfo.phone",
+//           role: "$userInfo.role",
+//           profileImage: "$userInfo.profileImage",
+//         },
+//       },
+//     },
+
+//     // remove temporary fields
+//     {
+//       $project: {
+//         distance: 0,
+//         userInfo: 0,
+//         ratingScore: 0,
+//         proximityScore: 0,
+//         recommendationScore: 0,
+//       },
+//     },
+
+//     { $limit: limit },
+//   ]);
+
+//   return cars;
+// };
+
+
+const getSuggestedCarsFromDB = async (
+  userId: string,
+  limit: number = 10
+) => {
+  console.log("===== START getSuggestedCarsFromDB =====");
   const user = await User.findById(userId).select("location").lean();
+  console.log("User fetched:", user);
 
   let userLocation: [number, number] | undefined;
   if (
@@ -422,95 +724,96 @@ const getSuggestedCarsFromDB = async (userId: string, limit: number = 10) => {
     }
   }
 
+  // Default Dhaka location
   const defaultLocation: [number, number] = [90.4074, 23.8103];
   const location = userLocation || defaultLocation;
+  console.log("Using location:", location);
 
   const maxDistance = 50000; // 50 km
 
-  const cars = await Car.aggregate([
-    {
-      $geoNear: {
-        near: { type: "Point", coordinates: location },
-        distanceField: "distance",
-        maxDistance,
-        spherical: true,
-        query: {
-          isActive: true,
-          verificationStatus: CAR_VERIFICATION_STATUS.APPROVED,
-        },
-      },
+  // ---------- STEP 1: Geo query ----------
+ const rawCars = await Car.aggregate([
+  {
+    $geoNear: {
+      near: { type: "Point", coordinates: location },
+      distanceField: "distance", // original in meters
+      maxDistance,
+      spherical: true,
+      query: { isActive: true, verificationStatus: CAR_VERIFICATION_STATUS.APPROVED },
     },
-    {
-      $addFields: {
-        distanceInKm: { $round: [{ $divide: ["$distance", 1000] }, 1] },
-        ratingScore: {
-          $cond: [
-            { $gt: ["$totalReviews", 0] },
-            { $divide: ["$averageRating", 5] },
-            0.6,
-          ],
-        },
-        proximityScore: {
-          $divide: [1, { $add: [1, { $divide: ["$distance", 10000] }] }],
-        },
-      },
+  },
+  // convert distance to km with 1 decimal place
+  {
+    $addFields: {
+      distance: { $round: [{ $divide: ["$distance", 1000] }, 1] },
     },
-    {
-      $addFields: {
-        recommendationScore: {
-          $add: [
-            { $multiply: ["$ratingScore", 0.6] },
-            { $multiply: ["$proximityScore", 0.4] },
-          ],
-        },
-      },
-    },
-    { $sort: { recommendationScore: -1 } },
-    { $limit: limit + 5 },
+  },
+  { $sort: { distance: 1 } },
+  { $limit: limit * 3 },
+]);
 
-    // Populate userId
-    {
-      $lookup: {
-        from: "users",
-        localField: "userId",
-        foreignField: "_id",
-        as: "userInfo",
-      },
-    },
-    { $unwind: "$userInfo" },
 
-    // replace userId with only firstName and lastName
-    {
-      $addFields: {
-        userId: {
-          _id: "$userInfo._id",
-          firstName: "$userInfo.firstName",
-          lastName: "$userInfo.lastName",
-          email: "$userInfo.email",
-          phone: "$userInfo.phone",
-          role: "$userInfo.role",
-          profileImage: "$userInfo.profileImage",
-        },
-      },
-    },
+  console.log("Raw cars fetched:", rawCars.length);
 
-    // remove temporary fields
-    {
-      $project: {
-        distance: 0,
-        userInfo: 0,
-        ratingScore: 0,
-        proximityScore: 0,
-        recommendationScore: 0,
-      },
-    },
+  const targetDate = new Date(); // today (UTC)
+  const suggestedCars: any[] = [];
 
-    { $limit: limit },
-  ]);
+  for (const car of rawCars) {
+    console.log("Checking car:", car._id);
+    const isBookable = await isCarBookableForDay(car, targetDate);
+    console.log(`Car ${car._id} bookable?`, isBookable);
 
-  return cars;
+    if (isBookable) {
+      suggestedCars.push(car);
+    }
+    if (suggestedCars.length === limit) break;
+  }
+
+  console.log("Suggested cars after availability check:", suggestedCars.length);
+
+  const populatedCars = await Car.populate(suggestedCars, {
+    path: "userId",
+    select: "firstName lastName email phone role profileImage",
+  });
+
+  console.log("Final populated cars:", populatedCars.length);
+  console.log("===== END getSuggestedCarsFromDB =====");
+
+  return populatedCars;
 };
 
+// =====================================================
+// HELPER: CHECK IF CAR IS BOOKABLE FOR A DAY
+// =====================================================
+const isCarBookableForDay = async (car: any, date: Date): Promise<boolean> => {
+  const dayStart = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+  const dayEnd = new Date(dayStart.getTime() + 86400000);
+
+  // 1️⃣ Manual full-day block
+  const isManuallyBlocked = car.blockedDates?.some((b: any) => {
+    return (
+      new Date(b.date).toISOString().split("T")[0] ===
+      dayStart.toISOString().split("T")[0]
+    );
+  });
+  if (isManuallyBlocked) return false;
+
+  // 2️⃣ AvailableDays check
+  if (car.availableDays?.length) {
+    const dayName = dayStart.toLocaleDateString("en-US", { weekday: "long" }).toUpperCase() as AVAILABLE_DAYS;
+    if (!car.availableDays.includes(dayName)) return false;
+  }
+
+  // 3️⃣ Booking overlap
+  const bookingExists = await Booking.exists({
+    carId: car._id,
+    status: { $in: [BOOKING_STATUS.PAID, BOOKING_STATUS.ONGOING] },
+    fromDate: { $lt: dayEnd },
+    toDate: { $gt: dayStart },
+  });
+
+  return !bookingExists;
+};
 
 export const CarServices = {
   createCarToDB,

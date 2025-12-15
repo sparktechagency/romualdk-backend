@@ -10,16 +10,17 @@ import parseAllFilesData from "../../middlewares/parseAllFileData";
 
 const router = express.Router();
 
+const requireAdminOrSuperAdmin = auth(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN);
+const requireSuperAdmin = auth(USER_ROLES.SUPER_ADMIN);
+const requireHostOrUser = auth(USER_ROLES.HOST, USER_ROLES.USER);
+const requireAnyUser = auth(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN, USER_ROLES.USER, USER_ROLES.HOST);
+
+
 /* ---------------------------- PROFILE ROUTES ---------------------------- */
 router
   .route("/profile")
   .get(
-    auth(
-      USER_ROLES.ADMIN,
-      USER_ROLES.USER,
-      USER_ROLES.SUPER_ADMIN,
-      USER_ROLES.HOST,
-    ),
+    requireAnyUser,
     UserController.getUserProfile,
   )
   .delete(auth(USER_ROLES.USER, USER_ROLES.HOST), UserController.deleteProfile);
@@ -34,33 +35,33 @@ router.post(
 /* ---------------------------- HOST LIST & DETAILS ----------------------- */
 router.get(
   "/host",
-  auth(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN),
+  requireAdminOrSuperAdmin,
   UserController.getAllHosts,
 );
 router.get(
   "/host/:id",
-  auth(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN),
+  requireAdminOrSuperAdmin,
   UserController.getHostById,
 );
 
 /* ---------------------------- ADMINS LIST ------------------------------- */
-router.get("/admins", auth(USER_ROLES.SUPER_ADMIN), UserController.getAdmin);
+router.get("/admins", requireSuperAdmin, UserController.getAdmin);
 router.delete(
   "/admins/:id",
-  auth(USER_ROLES.SUPER_ADMIN),
+  requireSuperAdmin,
   UserController.deleteAdmin,
 );
 
 /* ---------------------------- HOST REQUESTS ----------------------------- */
 router.get(
   "/host-request",
-  auth(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN),
+  requireAdminOrSuperAdmin,
   UserController.getAllHostRequests,
 );
 
 router.post(
   "/become-host",
-  auth(USER_ROLES.USER, USER_ROLES.HOST),
+  requireHostOrUser,
   fileUploadHandler(),
   parseAllFilesData(
     { fieldName: FOLDER_NAMES.NID_FRONT_PIC, forceSingle: true },
@@ -74,14 +75,14 @@ router.post(
 router
   .route("/host-request/status/:id")
   .patch(
-    auth(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN),
+    requireAdminOrSuperAdmin,
     UserController.changeHostRequestStatusById,
   );
 
 router
   .route("/host-request/:id")
   .get(
-    auth(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN),
+    requireAdminOrSuperAdmin,
     UserController.getHostRequestById,
   )
   .delete(
@@ -94,12 +95,7 @@ router
   .route("/")
   .post(UserController.createUser)
   .patch(
-    auth(
-      USER_ROLES.ADMIN,
-      USER_ROLES.USER,
-      USER_ROLES.HOST,
-      USER_ROLES.SUPER_ADMIN,
-    ),
+    requireAnyUser,
     fileUploadHandler(),
     parseAllFilesData({
       fieldName: FOLDER_NAMES.PROFILE_IMAGE,
@@ -115,19 +111,19 @@ router
 /* ---------------------------- SWITCH PROFILE ---------------------------- */
 router.patch(
   "/switch-profile",
-  auth(USER_ROLES.USER, USER_ROLES.HOST),
+  requireHostOrUser,
   UserController.switchProfile,
 );
 
 /* ---------------------------- STATUS UPDATE ----------------------------- */
 router.patch(
   "/host/status/:id",
-  auth(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN),
+ requireAdminOrSuperAdmin,
   UserController.updateHostStatusById,
 );
 router.patch(
   "/status/:id",
-  auth(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN),
+  requireAdminOrSuperAdmin,
   UserController.updateUserStatusById,
 );
 
@@ -135,11 +131,11 @@ router.patch(
 router
   .route("/:id")
   .get(
-    auth(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN),
+    requireAdminOrSuperAdmin,
     UserController.getUserById,
   )
   .delete(
-    auth(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN),
+    requireAdminOrSuperAdmin,
     UserController.deleteUserById,
   );
 

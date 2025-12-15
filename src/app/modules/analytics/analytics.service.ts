@@ -1,4 +1,3 @@
-
 import { PipelineStage } from "mongoose";
 import { HOST_STATUS, STATUS, USER_ROLES } from "../../../enums/user";
 import { CAR_VERIFICATION_STATUS } from "../car/car.interface";
@@ -96,5 +95,3 @@ export const AnalyticsServices = {
   statCountsFromDB,
   getGuestHostYearlyChart,
 };
-
-
