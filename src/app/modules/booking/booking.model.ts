@@ -1,5 +1,5 @@
 import { model, Schema, Model, Types } from "mongoose";
-import { IBooking, BOOKING_STATUS, Driver_STATUS } from "./booking.interface";
+import { IBooking, BOOKING_STATUS, Driver_STATUS, CAR_STATUS } from "./booking.interface";
 
  
 
@@ -8,6 +8,7 @@ const bookingSchema = new Schema<IBooking>(
     userId: { type: Schema.Types.ObjectId, ref: "User", required: true },
     hostId: { type: Schema.Types.ObjectId, ref: "User", required: true },
     carId: { type: Schema.Types.ObjectId, ref: "Car", required: true },
+    transactionId: { type: Schema.Types.ObjectId, ref: "Transaction" },
     fromDate: { type: Date, required: true },
     toDate: { type: Date, required: true },
     totalAmount: { type: Number, required: true },
@@ -16,8 +17,13 @@ const bookingSchema = new Schema<IBooking>(
       enum: Object.values(BOOKING_STATUS),
       default: BOOKING_STATUS.PENDING,
     },
-  type: { type: String, enum: Driver_STATUS, required: false },  
+    carStatus: { type: String, enum: Object.values(CAR_STATUS)},
+    type: { type: String, enum: Object.values(Driver_STATUS), required: false },  
+    checkIn: { type: Boolean, default: false },
+    checkOut: { type: Boolean, default: false},
+    isCancelled: { type: Boolean, default: false },
   },
+  
   { timestamps: true, versionKey: false }
 );
 
@@ -25,6 +31,7 @@ const bookingSchema = new Schema<IBooking>(
 // Indexes
 bookingSchema.index({ userId: 1 });
 bookingSchema.index({ hostId: 1 });
+
 bookingSchema.index({ carId: 1 });
 
 export const Booking: Model<IBooking> = model<IBooking>(

@@ -13,16 +13,28 @@ export enum Driver_STATUS {
   WITHOUTDRIVER = "withoutDriver",
 }
 
+export enum CAR_STATUS {
+  UPCOMING = "upcoming",
+  ONGOING = "ongoing",
+  COMPLETED = "completed",
+  CANCELLED = "cancelled",
+}
+
 export interface IBooking {
   _id: Types.ObjectId;
   carId: Types.ObjectId;
   userId: Types.ObjectId;
   hostId: Types.ObjectId;
+  transactionId?: Types.ObjectId;
   fromDate: Date;
   toDate: Date;
   totalAmount: number;
   status: BOOKING_STATUS;
+  carStatus?: CAR_STATUS;
   type?: Driver_STATUS;
+  checkIn?: boolean;
+  checkOut?: boolean;
+  isCancelled?: boolean;
   createdAt: string;
   updatedAt: string;
 }

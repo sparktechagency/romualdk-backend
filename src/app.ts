@@ -5,8 +5,9 @@ import { Morgan } from "./shared/morgan";
 import router from "../src/app/routes";
 import globalErrorHandler from "./app/middlewares/globalErrorHandler";
 import path from "path";
-import { paymentRoutes } from "./app/modules/payment/payment.routes";
-import { stripeWebhook } from "./app/modules/payment/payment.controller";
+import { PaymentController } from "./app/modules/payment/payment.controller";
+import { globalRateLimiter } from "./app/middlewares/rateLimiter";
+
 
 
 const app: Application = express();
@@ -24,13 +25,20 @@ app.use(cors());
 app.post(
   "/api/v1/payments/webhook/stripe",
   express.raw({ type: "application/json" }),
-  stripeWebhook
+   PaymentController.stripeWebhook
 );
 
 
 app.use(express.json());
 
 app.use(express.urlencoded({ extended: true }));
+
+ 
+//  GLOBAL RATE LIMITER — EXACT PLACE
+ 
+app.use(globalRateLimiter);
+
+ 
 
 //file retrieve
 app.use(express.static("uploads"));

@@ -1,37 +1,53 @@
 import { Request, Response } from "express";
-import { createCheckoutSession, handleWebhook } from "./payment.service";
-import { initiatePaymentSchema } from "./payment.validation";
+import catchAsync from "../../../shared/catchAsync";
+import sendResponse from "../../../shared/sendResponse";
+import {  PaymentService } from "./payment.service";
 
-export const initiatePayment = async (req: Request, res: Response) => {
-  try {
-    const input = initiatePaymentSchema.parse(req.body);
-    // const input = req.body;
-    const result = await createCheckoutSession(input);
-    res.json(result);
-  } catch (error: any) {
-    if (error.name === "ZodError") {
-      return res.status(400).json({
-        success: false,
-        message: "Validation error",
-        errors: error.errors.map((e: any) => e.message),
-      });
-    }
-    res.status(400).json({ success: false, message: error.message });
-  }
-};
+const initiatePayment = catchAsync(async (req: Request, res: Response) => {
+  const payload = req.body;
 
-export const stripeWebhook = async (req: Request, res: Response) => {
+  const result = await PaymentService.createCheckoutSession(payload);
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Payment session initiated successfully!",
+    data: result,
+  });
+});
+ 
+
+
+const stripeWebhook = catchAsync(async (req: Request, res: Response) => {
   const sig = req.headers["stripe-signature"] as string;
-  if (!sig) return res.status(400).send("Missing stripe-signature");
 
-  const success = await handleWebhook(req.body, sig);
-  res.json({ received: true, success });
-};
+  if (!sig) {
+    return res.status(400).send("Missing stripe-signature");
+  }
 
-export const success = (_req: Request, res: Response) => {
-  res.redirect("myapp://payment-success");
-};
+  const result = await PaymentService.handleWebhook(req.body, sig);
 
-export const cancel = (_req: Request, res: Response) => {
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Webhook received",
+    data: { received: true, success: result },
+  });
+});
+
+const success = catchAsync(async (_req: Request, res: Response) => {
+  res.redirect("myapp://payment-success"); 
+});
+
+const cancel = catchAsync(async (_req: Request, res: Response) => {
   res.redirect("myapp://payment-failed");
+});
+
+// -------- Export as object ----------
+
+export const PaymentController = {
+  initiatePayment,
+  stripeWebhook,
+  success,
+  cancel,
 };

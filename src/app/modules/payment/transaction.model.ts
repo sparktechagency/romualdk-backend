@@ -1,35 +1,53 @@
-// import mongoose, { Document, Schema } from "mongoose";
+import mongoose, { Document, Schema, Types } from "mongoose";
+
+export enum TransactionStatus {
+  PENDING = "pending",
+  SUCCEEDED = "succeeded",
+  FAILED = "failed",
+  CANCELED = "canceled",
+}
+
+// export enum PaymentProvider {
+//   CINETPAY = "cinetpay",
+//   STRIPE = "stripe",
+//   OTHER = "other",
+// }
+
+export enum PaymentMethod { CARD = "card", }
 
 export interface ITransaction extends Document {
-  bookingId: mongoose.Types.ObjectId;
+  bookingId: Types.ObjectId | string;
   amount: number;
-  method: string;
-  status: "pending" | "paid" | "failed";
+  currency: string;
+  method: PaymentMethod;
+  status: TransactionStatus;
   externalRef?: string;
-  provider: "cinetpay";
+  // provider?: PaymentProvider;
+  stripeSessionId?: string;
+  stripePaymentIntentId?: string;
   createdAt: Date;
   updatedAt: Date;
 }
- 
 
-import mongoose from "mongoose";
-
-const transactionSchema = new mongoose.Schema(
+const transactionSchema = new Schema<ITransaction>(
   {
-    bookingId: { type: mongoose.Schema.Types.ObjectId, ref: "Booking", required: true },
+    bookingId: { type: Schema.Types.ObjectId, ref: "Booking", required: true },
     amount: { type: Number, required: true },
     currency: { type: String, default: "xof" },
-    method: { type: String, default: "card" },
+    method: { type: String, enum: Object.values(PaymentMethod), default:  PaymentMethod.CARD },
     status: {
       type: String,
-      enum: ["pending", "succeeded", "failed", "canceled"],
-      default: "pending",
+      enum: Object.values(TransactionStatus),
+      default: TransactionStatus.PENDING,
     },
-    stripeSessionId: String,
-    stripePaymentIntentId: String,
+    externalRef: { type: String },
+    stripeSessionId: { type: String },
+    stripePaymentIntentId: { type: String },
   },
   { timestamps: true }
 );
 
-export const Transaction = mongoose.model("Transaction", transactionSchema);
+export const Transaction = mongoose.model<ITransaction>("Transaction", transactionSchema);
+
+export default Transaction;
 

@@ -3,20 +3,20 @@ import Stripe from "stripe";
 import stripe from "../../../config/stripe";
 import config from "../../../config";
 import { Booking } from "../booking/booking.model";
-import { Transaction } from "./transaction.model";
-import { BOOKING_STATUS } from "../booking/booking.interface";
+import { Transaction, TransactionStatus, PaymentMethod } from "./transaction.model";
+import { BOOKING_STATUS, CAR_STATUS } from "../booking/booking.interface";
 import { InitiatePaymentDto } from "./payment.interface";
 
-export const createCheckoutSession = async (input: InitiatePaymentDto) => {
+const createCheckoutSession = async (input: InitiatePaymentDto) => {
   const { bookingId, customerEmail, customerName, customerPhone } = input;
 
-  const booking = await Booking.findById(bookingId);
+  const booking = await Booking.findById(bookingId).populate("carId");
   if (!booking) throw new Error("Booking not found");
   if (booking.status !== BOOKING_STATUS.PENDING)
     throw new Error("Booking already paid or canceled");
 
   const session = await stripe.checkout.sessions.create({
-    payment_method_types: ["card"],
+    payment_method_types: [PaymentMethod.CARD],
     mode: "payment",
     success_url: `${process.env.BASE_URL}/api/payments/success?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${process.env.BASE_URL}/api/payments/cancel`,
@@ -28,8 +28,8 @@ export const createCheckoutSession = async (input: InitiatePaymentDto) => {
         price_data: {
           currency: "xof",
           product_data: {
-            name: "Car Rental Booking",
-            description: `Booking #${bookingId}`,
+          name: `${(booking.carId as any).brand} ${(booking.carId as any).model} (${(booking.carId as any).licensePlate})`,
+          description: `Booking ID is #${bookingId} for ${(booking.carId as any).brand}, ${(booking.carId as any).model}, ${(booking.carId as any).year}, ${(booking.carId as any).color}`,
           },
           unit_amount: Math.round(booking.totalAmount * 100),
         },
@@ -40,12 +40,24 @@ export const createCheckoutSession = async (input: InitiatePaymentDto) => {
     billing_address_collection: "required",
   });
 
+  // await Transaction.create({
+  //   bookingId: booking._id,
+  //   amount: booking.totalAmount,
+  //   method: PaymentMethod.CARD,
+  //   stripeSessionId: session.id,
+  //   status: TransactionStatus.PENDING,
+  // });
   await Transaction.create({
-    bookingId: booking._id,
-    amount: booking.totalAmount,
-    stripeSessionId: session.id,
-    status: "pending",
+  bookingId: booking._id,
+  amount: booking.totalAmount,
+  method: PaymentMethod.CARD,
+  stripeSessionId: session.id,
+  status: TransactionStatus.PENDING,
+}).then(async (trx) => {
+  await Booking.findByIdAndUpdate(booking._id, {
+    transactionId: trx._id
   });
+});
 
   return {
     success: true,
@@ -54,7 +66,7 @@ export const createCheckoutSession = async (input: InitiatePaymentDto) => {
   };
 };
 
-export const handleWebhook = async (rawBody: Buffer, sig: string) => {
+const handleWebhook = async (rawBody: Buffer, sig: string) => {
   let event: Stripe.Event;
 
   try {
@@ -77,21 +89,34 @@ export const handleWebhook = async (rawBody: Buffer, sig: string) => {
     const booking = await Booking.findById(bookingId);
     if (booking && booking.status === BOOKING_STATUS.PENDING) {
       booking.status = BOOKING_STATUS.PAID;
+
+       // --------- CAR STATUS LOGIC (Rules) --------- //
+    if (!booking.checkIn && !booking.checkOut) {
+        booking.carStatus
+         = CAR_STATUS.UPCOMING;  
+      }
+
       await booking.save();
 
       await Transaction.findOneAndUpdate(
         { stripeSessionId: session.id },
         {
-          status: "succeeded",
+          status: TransactionStatus.SUCCEEDED,
           stripePaymentIntentId: session.payment_intent as string,
         }
       );
 
-      console.log(`Payment Success! Booking ${bookingId} is now PAID`);
       return true;
     }
   }
 
   return false;
 };
-// ...existing code...
+
+// -------- Export as object ----------
+
+export const PaymentService = {
+  createCheckoutSession,
+  handleWebhook,
+};
+ 
