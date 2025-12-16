@@ -9,7 +9,6 @@ import { PaymentController } from "./app/modules/payment/payment.controller";
 import { globalRateLimiter } from "./app/middlewares/rateLimiter";
 
 
-
 const app: Application = express();
 
 app.set("view engine", "ejs");
@@ -20,14 +19,22 @@ app.use(Morgan.successHandler);
 app.use(Morgan.errorHandler);
 
 //body parser
-app.use(cors());
+app.use(
+  cors({
+    origin: ["http://10.10.7.46:30011"],
+    credentials: true,
+  }),
+);
 
 app.post(
   "/api/v1/payments/webhook/stripe",
   express.raw({ type: "application/json" }),
+<<<<<<< Updated upstream
    PaymentController.stripeWebhook
+=======
+  stripeWebhook,
+>>>>>>> Stashed changes
 );
-
 
 app.use(express.json());
 
@@ -45,7 +52,6 @@ app.use(express.static("uploads"));
 
 //router
 app.use("/api/v1", router);
-
 
 app.get("/", (req: Request, res: Response) => {
   res.send("Server is running...");

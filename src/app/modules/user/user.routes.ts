@@ -13,16 +13,17 @@ const router = express.Router();
 const requireAdminOrSuperAdmin = auth(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN);
 const requireSuperAdmin = auth(USER_ROLES.SUPER_ADMIN);
 const requireHostOrUser = auth(USER_ROLES.HOST, USER_ROLES.USER);
-const requireAnyUser = auth(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN, USER_ROLES.USER, USER_ROLES.HOST);
-
+const requireAnyUser = auth(
+  USER_ROLES.ADMIN,
+  USER_ROLES.SUPER_ADMIN,
+  USER_ROLES.USER,
+  USER_ROLES.HOST,
+);
 
 /* ---------------------------- PROFILE ROUTES ---------------------------- */
 router
   .route("/profile")
-  .get(
-    requireAnyUser,
-    UserController.getUserProfile,
-  )
+  .get(requireAnyUser, UserController.getUserProfile)
   .delete(auth(USER_ROLES.USER, USER_ROLES.HOST), UserController.deleteProfile);
 
 /* ---------------------------- ADMIN CREATE ------------------------------ */
@@ -33,24 +34,12 @@ router.post(
 );
 
 /* ---------------------------- HOST LIST & DETAILS ----------------------- */
-router.get(
-  "/host",
-  requireAdminOrSuperAdmin,
-  UserController.getAllHosts,
-);
-router.get(
-  "/host/:id",
-  requireAdminOrSuperAdmin,
-  UserController.getHostById,
-);
+router.get("/host", requireAdminOrSuperAdmin, UserController.getAllHosts);
+router.get("/host/:id", requireAdminOrSuperAdmin, UserController.getHostById);
 
 /* ---------------------------- ADMINS LIST ------------------------------- */
 router.get("/admins", requireSuperAdmin, UserController.getAdmin);
-router.delete(
-  "/admins/:id",
-  requireSuperAdmin,
-  UserController.deleteAdmin,
-);
+router.delete("/admins/:id", requireSuperAdmin, UserController.deleteAdmin);
 
 /* ---------------------------- HOST REQUESTS ----------------------------- */
 router.get(
@@ -74,17 +63,11 @@ router.post(
 
 router
   .route("/host-request/status/:id")
-  .patch(
-    requireAdminOrSuperAdmin,
-    UserController.changeHostRequestStatusById,
-  );
+  .patch(requireAdminOrSuperAdmin, UserController.changeHostRequestStatusById);
 
 router
   .route("/host-request/:id")
-  .get(
-    requireAdminOrSuperAdmin,
-    UserController.getHostRequestById,
-  )
+  .get(requireAdminOrSuperAdmin, UserController.getHostRequestById)
   .delete(
     auth(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN),
     UserController.deleteHostRequestById,
@@ -118,7 +101,7 @@ router.patch(
 /* ---------------------------- STATUS UPDATE ----------------------------- */
 router.patch(
   "/host/status/:id",
- requireAdminOrSuperAdmin,
+  requireAdminOrSuperAdmin,
   UserController.updateHostStatusById,
 );
 router.patch(
@@ -130,13 +113,7 @@ router.patch(
 /* ---------------------------- DYNAMIC USER ID ROUTES (KEEP LAST!) ------- */
 router
   .route("/:id")
-  .get(
-    requireAdminOrSuperAdmin,
-    UserController.getUserById,
-  )
-  .delete(
-    requireAdminOrSuperAdmin,
-    UserController.deleteUserById,
-  );
+  .get(requireAdminOrSuperAdmin, UserController.getUserById)
+  .delete(requireAdminOrSuperAdmin, UserController.deleteUserById);
 
 export const UserRoutes = router;

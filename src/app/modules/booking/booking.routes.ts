@@ -1,4 +1,3 @@
- 
 import { Router } from "express";
 import { BookingController } from "./booking.controller";
 import auth from "../../middlewares/auth";
@@ -8,8 +7,21 @@ import { createBookingSchema } from "./booking.validation";
 
 const router = Router();
 
+<<<<<<< Updated upstream
 router.post("/", auth(USER_ROLES.ADMIN, USER_ROLES.HOST, USER_ROLES.SUPER_ADMIN, USER_ROLES.USER), validateRequest(createBookingSchema as any), BookingController.createBooking) ;
 
+=======
+router.post(
+  "/",
+  auth(
+    USER_ROLES.ADMIN,
+    USER_ROLES.HOST,
+    USER_ROLES.SUPER_ADMIN,
+    USER_ROLES.USER,
+  ),
+  BookingController.create,
+);
+>>>>>>> Stashed changes
 router.get("/my", auth(), BookingController.myBookings);
 router.get("/host", auth(), BookingController.hostBookings);
 router.patch("/check-in/:id", auth(USER_ROLES.ADMIN, USER_ROLES.HOST, USER_ROLES.SUPER_ADMIN, USER_ROLES.USER), BookingController.checkInController );

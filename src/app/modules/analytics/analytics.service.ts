@@ -22,7 +22,6 @@ const statCountsFromDB = async () => {
   };
 };
 
-
 const getGuestHostYearlyChart = async (year?: number) => {
   const currentYear = new Date().getUTCFullYear();
   const targetYear = year || currentYear;
@@ -87,7 +86,7 @@ const getGuestHostYearlyChart = async (year?: number) => {
 
   return {
     year: targetYear,
-    chart
+    chart,
   };
 };
 

@@ -1,40 +1,51 @@
 import { Types } from "mongoose";
-import { HOST_STATUS, USER_ROLES } from "../../../enums/user"
+import { HOST_STATUS, USER_ROLES } from "../../../enums/user";
 import ApiError from "../../../errors/ApiErrors";
-import { User } from "../user/user.model"
-import { AVAILABLE_DAYS, CAR_VERIFICATION_STATUS, IBlockedDate, ICar } from "./car.interface";
+import { User } from "../user/user.model";
+import {
+  AVAILABLE_DAYS,
+  CAR_VERIFICATION_STATUS,
+  IBlockedDate,
+  ICar,
+} from "./car.interface";
 import { Car } from "./car.model";
 import QueryBuilder from "../../builder/queryBuilder";
 import { FavouriteCar } from "../favouriteCar/favouriteCar.model";
 import { ReviewServices } from "../review/review.service";
 import { REVIEW_TYPE } from "../review/review.interface";
 import { Booking } from "../booking/booking.model";
-import { BOOKING_STATUS, IBooking } from "../booking/booking.interface";
+import { BOOKING_STATUS } from "../booking/booking.interface";
 
 const createCarToDB = async (userId: string, payload: ICar) => {
-  const user = await User.findOne({ _id: userId, hostStatus: HOST_STATUS.APPROVED, role: USER_ROLES.HOST });
+  const user = await User.findOne({
+    _id: userId,
+    hostStatus: HOST_STATUS.APPROVED,
+    role: USER_ROLES.HOST,
+  });
 
   if (!user) {
-    throw new ApiError(400, "No user found by this Id")
-  };
+    throw new ApiError(400, "No user found by this Id");
+  }
 
   payload.userId = new Types.ObjectId(userId);
 
   const result = await Car.create(payload);
 
   if (!result) {
-    throw new ApiError(400, "Failed to create a car")
-  };
+    throw new ApiError(400, "Failed to create a car");
+  }
 
   return result;
+};
 
-}
-
-// for feed 
+// for feed
 const getAllCarsFromDB = async (query: any, userId: string) => {
-
-  const baseQuery = Car.find({ verificationStatus: CAR_VERIFICATION_STATUS.APPROVED }).populate({ path: "userId", select: "firstName lastName fullName role profileImage email phone" });
-
+  const baseQuery = Car.find({
+    verificationStatus: CAR_VERIFICATION_STATUS.APPROVED,
+  }).populate({
+    path: "userId",
+    select: "firstName lastName fullName role profileImage email phone",
+  });
 
   const queryBuilder = new QueryBuilder(baseQuery, query)
     .search(["brand", "model", "transmission", "color", "city", "licensePlate"])
@@ -52,7 +63,10 @@ const getAllCarsFromDB = async (query: any, userId: string) => {
         referenceId: car._id,
       });
 
-      const reviewSummary = await ReviewServices.getReviewSummaryFromDB(car.id, REVIEW_TYPE.CAR)
+      const reviewSummary = await ReviewServices.getReviewSummaryFromDB(
+        car.id,
+        REVIEW_TYPE.CAR,
+      );
 
       return {
         ...car.toObject(),
@@ -62,29 +76,35 @@ const getAllCarsFromDB = async (query: any, userId: string) => {
         starCounts: reviewSummary.starCounts,
         reviews: reviewSummary.reviews,
       };
-    })
+    }),
   );
-
-
 
   const meta = await queryBuilder.countTotal();
 
   if (!cars || cars.length === 0) {
-    throw new ApiError(404, "No cars are found in the database")
-  };
+    throw new ApiError(404, "No cars are found in the database");
+  }
 
   return {
     data: carsWithBookmark,
     meta,
-  }
-}
+  };
+};
 
 // for verifications, dashboard
 const getAllCarsForVerificationsFromDB = async (query: any) => {
-
   const baseQuery = Car.find({
-    verificationStatus: { $in: [CAR_VERIFICATION_STATUS.PENDING, CAR_VERIFICATION_STATUS.REJECTED, CAR_VERIFICATION_STATUS.APPROVED] }
-  }).populate({ path: "userId", select: "firstName lastName fullName role email phone profileImage" });
+    verificationStatus: {
+      $in: [
+        CAR_VERIFICATION_STATUS.PENDING,
+        CAR_VERIFICATION_STATUS.REJECTED,
+        CAR_VERIFICATION_STATUS.APPROVED,
+      ],
+    },
+  }).populate({
+    path: "userId",
+    select: "firstName lastName fullName role email phone profileImage",
+  });
 
   const queryBuilder = new QueryBuilder(baseQuery, query)
     .search(["brand", "model", "transmission", "color", "city", "licensePlate"])
@@ -97,43 +117,69 @@ const getAllCarsForVerificationsFromDB = async (query: any) => {
 
   const meta = await queryBuilder.countTotal();
 
-
   if (!cars || cars.length === 0) {
-    throw new ApiError(404, "No cars are found in the database")
-  };
+    throw new ApiError(404, "No cars are found in the database");
+  }
 
   return {
     data: cars,
     meta,
+  };
+};
+
+const updateCarVerificationStatusByIdToDB = async (
+  carId: string,
+  carVerificationStatus:
+    | CAR_VERIFICATION_STATUS.APPROVED
+    | CAR_VERIFICATION_STATUS.PENDING
+    | CAR_VERIFICATION_STATUS.REJECTED,
+) => {
+  if (
+    ![
+      CAR_VERIFICATION_STATUS.PENDING,
+      CAR_VERIFICATION_STATUS.APPROVED,
+      CAR_VERIFICATION_STATUS.REJECTED,
+    ].includes(carVerificationStatus)
+  ) {
+    throw new ApiError(
+      400,
+      "Car verification status must be either 'PENDING','APPROVED' or 'REJECTED'",
+    );
   }
-}
+  console.log(carVerificationStatus, "STATUS");
 
-const updateCarVerificationStatusByIdToDB = async (carId: string, carVerificationStatus: CAR_VERIFICATION_STATUS.APPROVED | CAR_VERIFICATION_STATUS.PENDING | CAR_VERIFICATION_STATUS.REJECTED) => {
-
-  if (![CAR_VERIFICATION_STATUS.PENDING, CAR_VERIFICATION_STATUS.APPROVED, CAR_VERIFICATION_STATUS.REJECTED].includes(carVerificationStatus)) {
-    throw new ApiError(400, "Car verification status must be either 'PENDING','APPROVED' or 'REJECTED'");
-  }
-  console.log(carVerificationStatus, "STATUS")
-
-  const result = await Car.findByIdAndUpdate(carId, { verificationStatus: carVerificationStatus }, { new: true });
+  const result = await Car.findByIdAndUpdate(
+    carId,
+    { verificationStatus: carVerificationStatus },
+    { new: true },
+  );
 
   if (!result) {
-    throw new ApiError(400, "Failed to change car verification status by this car ID");
+    throw new ApiError(
+      400,
+      "Failed to change car verification status by this car ID",
+    );
   }
 
   return result;
-
-}
+};
 
 // for host role
 const getOwnCarsFromDB = async (userId: string) => {
-  const user = await User.findOne({ _id: userId, role: USER_ROLES.HOST, hostStatus: HOST_STATUS.APPROVED })
+  const user = await User.findOne({
+    _id: userId,
+    role: USER_ROLES.HOST,
+    hostStatus: HOST_STATUS.APPROVED,
+  });
 
   if (!user) {
-    throw new ApiError(404, "No hosts are found by this ID")
-  };
+    throw new ApiError(404, "No hosts are found by this ID");
+  }
 
-  const result = await Car.find({ userId }).populate({ path: "userId", select: "firstName lastName fullName role profileImage email phone" });
+  const result = await Car.find({ userId }).populate({
+    path: "userId",
+    select: "firstName lastName fullName role profileImage email phone",
+  });
 
   const carsWithBookmark = await Promise.all(
     result.map(async (car: any) => {
@@ -142,8 +188,10 @@ const getOwnCarsFromDB = async (userId: string) => {
         referenceId: car._id,
       });
 
-      const reviewSummary = await ReviewServices.getReviewSummaryFromDB(car.id, REVIEW_TYPE.CAR)
-
+      const reviewSummary = await ReviewServices.getReviewSummaryFromDB(
+        car.id,
+        REVIEW_TYPE.CAR,
+      );
 
       return {
         ...car.toObject(),
@@ -153,31 +201,35 @@ const getOwnCarsFromDB = async (userId: string) => {
         starCounts: reviewSummary.starCounts,
         reviews: reviewSummary.reviews,
       };
-    })
+    }),
   );
 
   if (!result || result.length === 0) {
-    return []
-  };
+    return [];
+  }
 
   return carsWithBookmark;
-
-}
+};
 
 const getCarByIdFromDB = async (id: string, userId: string) => {
-  const result = await Car.findById(id).populate({ path: "userId", select: "firstName lastName fullName role profileImage email phone" });
+  const result = await Car.findById(id).populate({
+    path: "userId",
+    select: "firstName lastName fullName role profileImage email phone",
+  });
 
   const isBookmarked = await FavouriteCar.exists({
     userId,
     referenceId: id,
   });
 
-  const reviewSummary = await ReviewServices.getReviewSummaryFromDB(id, REVIEW_TYPE.CAR)
-
+  const reviewSummary = await ReviewServices.getReviewSummaryFromDB(
+    id,
+    REVIEW_TYPE.CAR,
+  );
 
   if (!result) {
-    return {}
-  };
+    return {};
+  }
 
   return {
     ...result.toObject(),
@@ -186,30 +238,33 @@ const getCarByIdFromDB = async (id: string, userId: string) => {
     totalReviews: reviewSummary.totalReviews,
     starCounts: reviewSummary.starCounts,
     reviews: reviewSummary.reviews,
-  };;
-
-}
+  };
+};
 
 const removeUndefined = <T extends Record<string, any>>(obj: T): Partial<T> =>
   Object.fromEntries(
-    Object.entries(obj).filter(([_, v]) => v !== undefined && v !== null)
+    Object.entries(obj).filter(([_, v]) => v !== undefined && v !== null),
   ) as Partial<T>;
 
 enum ACTION {
   ADD = "ADD",
-  DELETE = "DELETE"
+  DELETE = "DELETE",
 }
 
 interface IArrayAction {
-  field: string;            // e.g. "facilities"
-  action: ACTION // add/remove
-  value: string;            // single item
+  field: string; // e.g. "facilities"
+  action: ACTION; // add/remove
+  value: string; // single item
 }
+
+/*
+200 golpo dorkar 1 year
+*/
 
 const updateCarByIdToDB = async (
   userId: string,
   carId: string,
-  payload: Partial<ICar> & { arrayAction?: IArrayAction }
+  payload: Partial<ICar> & { arrayAction?: IArrayAction },
 ) => {
   // -------------------------- Check host --------------------------
   const user = await User.findOne({
@@ -245,7 +300,7 @@ const updateCarByIdToDB = async (
     const updated = await Car.findOneAndUpdate(
       { _id: carId, userId },
       updateQuery,
-      { new: true }
+      { new: true },
     );
 
     return updated;
@@ -258,7 +313,7 @@ const updateCarByIdToDB = async (
   const updated = await Car.findOneAndUpdate(
     { _id: carId, userId },
     cleanPayload,
-    { new: true }
+    { new: true },
   );
 
   return updated;
@@ -279,12 +334,11 @@ const deleteCarByIdFromDB = async (userId: string, id: string) => {
   const result = await Car.findByIdAndDelete(id);
 
   if (!result) {
-    throw new ApiError(400, "Failed to delete car by this ID")
-  };
+    throw new ApiError(400, "Failed to delete car by this ID");
+  }
 
   return result;
-}
-
+};
 
 // const getAvailability = async (carId: string, dateString: string) => {
 //   const targetDate = new Date(dateString);
@@ -357,7 +411,6 @@ const deleteCarByIdFromDB = async (userId: string, id: string) => {
 //   };
 // };
 
-
 // const generateBlockedResponse = (date: Date, reason: string) => ({
 //   date: date.toISOString().split("T")[0],
 //   isFullyBlocked: true,
@@ -378,13 +431,13 @@ const getAvailability = async (carId: string, dateString: string) => {
     Date.UTC(
       targetDate.getUTCFullYear(),
       targetDate.getUTCMonth(),
-      targetDate.getUTCDate()
-    )
+      targetDate.getUTCDate(),
+    ),
   );
 
   // ---------- Fetch Car ----------
   const car = await Car.findById(carId).select(
-    "isActive availableDays availableHours defaultStartTime defaultEndTime blockedDates"
+    "isActive availableDays availableHours defaultStartTime defaultEndTime blockedDates",
   );
 
   if (!car) throw new ApiError(404, "Car not found");
@@ -393,15 +446,16 @@ const getAvailability = async (carId: string, dateString: string) => {
   }
 
   // ---------- Priority 1: Manual Full Day Block ----------
-  const blockedEntry = car.blockedDates?.find((b: any) =>
-    new Date(b.date).toISOString().split("T")[0] ===
-    normalizedDate.toISOString().split("T")[0]
+  const blockedEntry = car.blockedDates?.find(
+    (b: any) =>
+      new Date(b.date).toISOString().split("T")[0] ===
+      normalizedDate.toISOString().split("T")[0],
   );
 
   if (blockedEntry) {
     return generateBlockedResponse(
       normalizedDate,
-      blockedEntry.reason || "Blocked by host"
+      blockedEntry.reason || "Blocked by host",
     );
   }
 
@@ -413,7 +467,7 @@ const getAvailability = async (carId: string, dateString: string) => {
   if (car.availableDays?.length && !car.availableDays.includes(dayName)) {
     return generateBlockedResponse(
       normalizedDate,
-      "Car not available on this day"
+      "Car not available on this day",
     );
   }
 
@@ -446,14 +500,11 @@ const getAvailability = async (carId: string, dateString: string) => {
     toDate: { $gt: normalizedDate },
   }).select("fromDate toDate");
 
-  const bookingBlockedHours = getBookingBlockedHours(
-    bookings,
-    normalizedDate
-  );
+  const bookingBlockedHours = getBookingBlockedHours(bookings, normalizedDate);
 
   // ---------- Final Slot Generation ----------
   const slots = Array.from({ length: 24 }, (_, hour) => {
-    // 1️⃣ Outside operating hours
+    // Outside operating hours
     if (!openHoursSet.has(hour)) {
       return {
         hour,
@@ -464,7 +515,7 @@ const getAvailability = async (carId: string, dateString: string) => {
       };
     }
 
-    // 2️⃣ Already booked (only if operating hour)
+    // Already booked (only if operating hour)
     if (bookingBlockedHours.has(hour)) {
       return {
         hour,
@@ -475,7 +526,7 @@ const getAvailability = async (carId: string, dateString: string) => {
       };
     }
 
-    // 3️⃣ Available
+    // Available
     return {
       hour,
       time: `${String(hour).padStart(2, "0")}:00`,
@@ -509,8 +560,8 @@ const getBookingBlockedHours = (bookings: any[], date: Date) => {
       date.getUTCDate(),
       0,
       0,
-      0
-    )
+      0,
+    ),
   );
 
   const dayEnd = new Date(
@@ -520,17 +571,15 @@ const getBookingBlockedHours = (bookings: any[], date: Date) => {
       date.getUTCDate(),
       23,
       59,
-      59
-    )
+      59,
+    ),
   );
 
   bookings.forEach((booking) => {
     const start = new Date(
-      Math.max(booking.fromDate.getTime(), dayStart.getTime())
+      Math.max(booking.fromDate.getTime(), dayStart.getTime()),
     );
-    const end = new Date(
-      Math.min(booking.toDate.getTime(), dayEnd.getTime())
-    );
+    const end = new Date(Math.min(booking.toDate.getTime(), dayEnd.getTime()));
 
     let current = new Date(start);
 
@@ -548,6 +597,7 @@ const getBookingBlockedHours = (bookings: any[], date: Date) => {
  * HELPER: FULL DAY BLOCK
  * =========================
  */
+
 const generateBlockedResponse = (date: Date, reason: string) => ({
   date: date.toISOString().split("T")[0],
   isFullyBlocked: true,
@@ -564,10 +614,13 @@ const generateBlockedResponse = (date: Date, reason: string) => ({
 const createCarBlockedDatesToDB = async (
   carId: string,
   userId: string,
-  payload: IBlockedDate[]
+  payload: IBlockedDate[],
 ) => {
   // Ensure host exists
-  const user = await User.findOne({ _id: userId, role: USER_ROLES.HOST }).select("_id");
+  const user = await User.findOne({
+    _id: userId,
+    role: USER_ROLES.HOST,
+  }).select("_id");
   if (!user) throw new ApiError(400, "No user found by this Id");
 
   // Ensure car belongs to this host
@@ -580,18 +633,18 @@ const createCarBlockedDatesToDB = async (
   // Normalize & remove duplicates by date
   const normalized = Array.from(
     new Map(
-      combined.map(item => [
+      combined.map((item) => [
         new Date(item.date).toISOString().split("T")[0], // unique key YYYY-MM-DD
-        { date: new Date(item.date), reason: item.reason || "" }
-      ])
-    ).values()
+        { date: new Date(item.date), reason: item.reason || "" },
+      ]),
+    ).values(),
   );
 
   // Update DB
   const result = await Car.findByIdAndUpdate(
     carId,
     { blockedDates: normalized },
-    { new: true }
+    { new: true },
   );
 
   if (!result) throw new ApiError(400, "Failed to update blocked dates");
@@ -703,11 +756,7 @@ const createCarBlockedDatesToDB = async (
 //   return cars;
 // };
 
-
-const getSuggestedCarsFromDB = async (
-  userId: string,
-  limit: number = 10
-) => {
+const getSuggestedCarsFromDB = async (userId: string, limit: number = 10) => {
   console.log("===== START getSuggestedCarsFromDB =====");
   const user = await User.findById(userId).select("location").lean();
   console.log("User fetched:", user);
@@ -732,26 +781,28 @@ const getSuggestedCarsFromDB = async (
   const maxDistance = 50000; // 50 km
 
   // ---------- STEP 1: Geo query ----------
- const rawCars = await Car.aggregate([
-  {
-    $geoNear: {
-      near: { type: "Point", coordinates: location },
-      distanceField: "distance", // original in meters
-      maxDistance,
-      spherical: true,
-      query: { isActive: true, verificationStatus: CAR_VERIFICATION_STATUS.APPROVED },
+  const rawCars = await Car.aggregate([
+    {
+      $geoNear: {
+        near: { type: "Point", coordinates: location },
+        distanceField: "distance", // original in meters
+        maxDistance,
+        spherical: true,
+        query: {
+          isActive: true,
+          verificationStatus: CAR_VERIFICATION_STATUS.APPROVED,
+        },
+      },
     },
-  },
-  // convert distance to km with 1 decimal place
-  {
-    $addFields: {
-      distance: { $round: [{ $divide: ["$distance", 1000] }, 1] },
+    // convert distance to km with 1 decimal place
+    {
+      $addFields: {
+        distance: { $round: [{ $divide: ["$distance", 1000] }, 1] },
+      },
     },
-  },
-  { $sort: { distance: 1 } },
-  { $limit: limit * 3 },
-]);
-
+    { $sort: { distance: 1 } },
+    { $limit: limit * 3 },
+  ]);
 
   console.log("Raw cars fetched:", rawCars.length);
 
@@ -786,10 +837,12 @@ const getSuggestedCarsFromDB = async (
 // HELPER: CHECK IF CAR IS BOOKABLE FOR A DAY
 // =====================================================
 const isCarBookableForDay = async (car: any, date: Date): Promise<boolean> => {
-  const dayStart = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+  const dayStart = new Date(
+    Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()),
+  );
   const dayEnd = new Date(dayStart.getTime() + 86400000);
 
-  // 1️⃣ Manual full-day block
+  // Manual full-day block
   const isManuallyBlocked = car.blockedDates?.some((b: any) => {
     return (
       new Date(b.date).toISOString().split("T")[0] ===
@@ -798,13 +851,15 @@ const isCarBookableForDay = async (car: any, date: Date): Promise<boolean> => {
   });
   if (isManuallyBlocked) return false;
 
-  // 2️⃣ AvailableDays check
+  // AvailableDays check
   if (car.availableDays?.length) {
-    const dayName = dayStart.toLocaleDateString("en-US", { weekday: "long" }).toUpperCase() as AVAILABLE_DAYS;
+    const dayName = dayStart
+      .toLocaleDateString("en-US", { weekday: "long" })
+      .toUpperCase() as AVAILABLE_DAYS;
     if (!car.availableDays.includes(dayName)) return false;
   }
 
-  // 3️⃣ Booking overlap
+  // Booking overlap
   const bookingExists = await Booking.exists({
     carId: car._id,
     status: { $in: [BOOKING_STATUS.PAID, BOOKING_STATUS.ONGOING] },
@@ -826,5 +881,5 @@ export const CarServices = {
   createCarBlockedDatesToDB,
   getAllCarsForVerificationsFromDB,
   updateCarVerificationStatusByIdToDB,
-  getSuggestedCarsFromDB
-}
+  getSuggestedCarsFromDB,
+};

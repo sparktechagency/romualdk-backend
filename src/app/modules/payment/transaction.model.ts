@@ -31,7 +31,15 @@ export interface ITransaction extends Document {
 
 const transactionSchema = new Schema<ITransaction>(
   {
+<<<<<<< Updated upstream
     bookingId: { type: Schema.Types.ObjectId, ref: "Booking", required: true },
+=======
+    bookingId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Booking",
+      required: true,
+    },
+>>>>>>> Stashed changes
     amount: { type: Number, required: true },
     currency: { type: String, default: "xof" },
     method: { type: String, enum: Object.values(PaymentMethod), default:  PaymentMethod.CARD },
@@ -44,10 +52,14 @@ const transactionSchema = new Schema<ITransaction>(
     stripeSessionId: { type: String },
     stripePaymentIntentId: { type: String },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
+<<<<<<< Updated upstream
 export const Transaction = mongoose.model<ITransaction>("Transaction", transactionSchema);
 
 export default Transaction;
 
+=======
+export const Transaction = mongoose.model("Transaction", transactionSchema);
+>>>>>>> Stashed changes

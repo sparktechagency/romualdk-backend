@@ -96,7 +96,6 @@ const resetPassword = (values: IResetPassword) => {
   return data;
 };
 
-
 export const emailTemplate = {
   createAccount,
   resetPassword,

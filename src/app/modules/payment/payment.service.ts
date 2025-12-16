@@ -73,7 +73,7 @@ const handleWebhook = async (rawBody: Buffer, sig: string) => {
     event = (stripe as unknown as Stripe).webhooks.constructEvent(
       rawBody,
       sig,
-      config.stripe.webhookSecret as string
+      config.stripe.webhookSecret as string,
     );
   } catch (err: any) {
     console.error(`Webhook Error: ${err.message}`);
@@ -82,7 +82,8 @@ const handleWebhook = async (rawBody: Buffer, sig: string) => {
 
   if (event.type === "checkout.session.completed") {
     const session = event.data.object as Stripe.Checkout.Session;
-    const bookingId = session.client_reference_id || session.metadata?.booking_id;
+    const bookingId =
+      session.client_reference_id || session.metadata?.booking_id;
 
     if (!bookingId) return false;
 
@@ -103,7 +104,7 @@ const handleWebhook = async (rawBody: Buffer, sig: string) => {
         {
           status: TransactionStatus.SUCCEEDED,
           stripePaymentIntentId: session.payment_intent as string,
-        }
+        },
       );
 
       return true;
@@ -112,6 +113,7 @@ const handleWebhook = async (rawBody: Buffer, sig: string) => {
 
   return false;
 };
+<<<<<<< Updated upstream
 
 // -------- Export as object ----------
 
@@ -120,3 +122,6 @@ export const PaymentService = {
   handleWebhook,
 };
  
+=======
+// ...existing code...
+>>>>>>> Stashed changes

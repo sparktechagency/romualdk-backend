@@ -198,7 +198,6 @@ const CarSchema = new Schema<ICar>(
         "22:00",
         "23:00",
       ],
-      default: "09:00",
     },
     defaultEndTime: {
       type: String,
@@ -228,7 +227,6 @@ const CarSchema = new Schema<ICar>(
         "22:00",
         "23:00",
       ],
-      default: "21:00",
     },
     isActive: {
       type: Boolean,
