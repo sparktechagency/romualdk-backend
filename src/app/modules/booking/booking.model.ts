@@ -15,7 +15,6 @@ const bookingSchema = new Schema<IBooking>(
       enum: Object.values(BOOKING_STATUS),
       default: BOOKING_STATUS.PENDING,
     },
-<<<<<<< Updated upstream
     carStatus: { type: String, enum: Object.values(CAR_STATUS)},
     type: { type: String, enum: Object.values(Driver_STATUS), required: false },  
     checkIn: { type: Boolean, default: false },
@@ -24,11 +23,6 @@ const bookingSchema = new Schema<IBooking>(
   },
   
   { timestamps: true, versionKey: false }
-=======
-    type: { type: String, enum: Driver_STATUS, required: false },
-  },
-  { timestamps: true, versionKey: false },
->>>>>>> Stashed changes
 );
 
 // Indexes

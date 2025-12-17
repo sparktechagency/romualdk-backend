@@ -28,12 +28,6 @@ const createBooking = async (body: any, userId: string) => {
 };
 
 // -------- Get user bookings ----------
-<<<<<<< Updated upstream
-=======
-const getUserBookings = async (userId: string) => {
-  return Booking.find({ userId }).sort({ createdAt: -1 });
-};
->>>>>>> Stashed changes
 
 const getUserBookings = async (userId: string, status?: string) => {
   const filter: any = { userId };

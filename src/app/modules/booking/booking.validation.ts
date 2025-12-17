@@ -12,9 +12,5 @@ export const createBookingSchema = z.object({
   }),
 });
 
-<<<<<<< Updated upstream
 
 export type CreateBookingInput = z.infer<typeof createBookingSchema>;
-=======
-// export type CreateBookingInput = z.infer<typeof createBookingSchema>;
->>>>>>> Stashed changes
