@@ -1,4 +1,3 @@
-import ApiError from "../../../errors/ApiErrors";
 import catchAsync from "../../../shared/catchAsync";
 import sendResponse from "../../../shared/sendResponse";
 import { REVIEW_TYPE } from "./review.interface";

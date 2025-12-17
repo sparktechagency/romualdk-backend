@@ -1,5 +1,3 @@
-// src/payment/payment.validation.ts
-
 import { z } from "zod";
 
 export const initiatePaymentSchema = z.object({body: z.object({

@@ -9,6 +9,7 @@ import { twilioService } from "../twilioService/sendOtpWithVerify";
 import { jwtHelper } from "../../../helpers/jwtHelper";
 import config from "../../../config";
 import QueryBuilder from "../../builder/queryBuilder";
+import { PipelineStage, Types } from "mongoose";
 
 const createAdminToDB = async (payload: any): Promise<IUser> => {
   // check admin is exist or not;
@@ -387,38 +388,239 @@ const deleteProfileFromDB = async (id: string) => {
   return result;
 };
 
+// const getAllHostsFromDB = async (query: any) => {
+//   const baseQuery = User.find({ hostStatus: HOST_STATUS.APPROVED });
+
+
+
+
+//   const queryBuilder = new QueryBuilder(baseQuery, query)
+//   .search(["firstName", "lastName", "fullName", "email", "phone"])
+//   .sort()
+//   .fields()
+//   .filter()
+//   .paginate();
+
+//   const hosts = await queryBuilder.modelQuery;
+
+
+//   const meta = await queryBuilder.countTotal();
+
+//   if (!hosts) throw new ApiError(404, "No hosts are found in the database");
+
+//   return {
+//     data: hosts,
+//     meta,
+//   };
+// };
+
 const getAllHostsFromDB = async (query: any) => {
-  const baseQuery = User.find({ hostStatus: HOST_STATUS.APPROVED });
+  const page = Number(query.page) || 1;
+  const limit = Number(query.limit) || 10;
+  const skip = (page - 1) * limit;
 
-  const queryBuilder = new QueryBuilder(baseQuery, query)
-    .search(["firstName", "lastName", "fullName", "email", "phone"])
-    .sort()
-    .fields()
-    .filter()
-    .paginate();
+  const {
+    searchTerm,
+    sortBy = "createdAt",
+    sortOrder = "desc",
+    ...filters
+  } = query;
 
-  const hosts = await queryBuilder.modelQuery;
+  /* -------------------- MATCH (BASE FILTER) -------------------- */
+  const matchStage: any = {
+    hostStatus: HOST_STATUS.APPROVED,
+  };
 
-  const meta = await queryBuilder.countTotal();
+  /* -------------------- SEARCH -------------------- */
+  if (searchTerm) {
+    matchStage.$or = [
+      { firstName: { $regex: searchTerm, $options: "i" } },
+      { lastName: { $regex: searchTerm, $options: "i" } },
+      { fullName: { $regex: searchTerm, $options: "i" } },
+      { email: { $regex: searchTerm, $options: "i" } },
+      { phone: { $regex: searchTerm, $options: "i" } },
+    ];
+  }
 
-  if (!hosts) throw new ApiError(404, "No hosts are found in the database");
+  /* -------------------- FILTER -------------------- */
+  Object.keys(filters).forEach((key) => {
+    if (
+      !["page", "limit", "search", "sortBy", "sortOrder"].includes(key)
+    ) {
+      matchStage[key] = filters[key];
+    }
+  });
+
+  /* -------------------- SORT -------------------- */
+  const sortStage: any = {
+    [sortBy]: sortOrder === "asc" ? 1 : -1,
+  };
+
+  /* -------------------- PIPELINE -------------------- */
+  const pipeline: PipelineStage[] = [
+    { $match: matchStage },
+
+    /* Join cars */
+    {
+      $lookup: {
+        from: "cars",
+        localField: "_id",
+        foreignField: "userId",
+        as: "cars",
+      },
+    },
+
+    /*  Filter cars + count */
+    {
+      $addFields: {
+        cars: {
+          $filter: {
+            input: "$cars",
+            as: "car",
+            cond: {
+              $and: [
+                { $eq: ["$$car.verificationStatus", "APPROVED"] },
+                { $eq: ["$$car.isActive", true] },
+              ],
+            },
+          },
+        },
+        totalCars: {
+          $size: {
+            $filter: {
+              input: "$cars",
+              as: "car",
+              cond: {
+                $and: [
+                  { $eq: ["$$car.verificationStatus", "APPROVED"] },
+                  { $eq: ["$$car.isActive", true] },
+                ],
+              },
+            },
+          },
+        },
+      },
+    },
+
+    /* Sort */
+    { $sort: sortStage },
+
+    /*  Pagination */
+    { $skip: skip },
+    { $limit: limit },
+
+    /*  Cleanup */
+    {
+      $project: {
+        password: 0,
+        __v: 0,
+      },
+    },
+  ];
+
+  const data = await User.aggregate(pipeline);
+
+  /* -------------------- META COUNT -------------------- */
+  const total = await User.countDocuments(matchStage);
+
+  if (!data.length) {
+    throw new ApiError(404, "No hosts found");
+  }
 
   return {
-    data: hosts,
-    meta,
+    data,
+    meta: {
+      page,
+      limit,
+      total,
+      totalPage: Math.ceil(total / limit),
+    },
   };
 };
 
+// const getHostByIdFromDB = async (id: string) => {
+//   const result = await User.findOne({
+//     _id: id,
+//     hostStatus: HOST_STATUS.APPROVED,
+//   });
+
+//   if (!result)
+//     throw new ApiError(404, "No host is found in the database by this ID");
+
+//   return result;
+// };
+
 const getHostByIdFromDB = async (id: string) => {
-  const result = await User.findOne({
-    _id: id,
-    hostStatus: HOST_STATUS.APPROVED,
-  });
+  if (!Types.ObjectId.isValid(id)) {
+    throw new ApiError(400, "Invalid host ID");
+  }
 
-  if (!result)
+  const pipeline = [
+    {
+      $match: {
+        _id: new Types.ObjectId(id),
+        hostStatus: HOST_STATUS.APPROVED,
+      },
+    },
+
+    /*  Join cars */
+    {
+      $lookup: {
+        from: "cars",
+        localField: "_id",
+        foreignField: "userId",
+        as: "cars",
+      },
+    },
+
+    /* Filter approved + active cars */
+    {
+      $addFields: {
+        cars: {
+          $filter: {
+            input: "$cars",
+            as: "car",
+            cond: {
+              $and: [
+                { $eq: ["$$car.verificationStatus", "APPROVED"] },
+                { $eq: ["$$car.isActive", true] },
+              ],
+            },
+          },
+        },
+        totalCars: {
+          $size: {
+            $filter: {
+              input: "$cars",
+              as: "car",
+              cond: {
+                $and: [
+                  { $eq: ["$$car.verificationStatus", "APPROVED"] },
+                  { $eq: ["$$car.isActive", true] },
+                ],
+              },
+            },
+          },
+        },
+      },
+    },
+
+    /*  Cleanup */
+    {
+      $project: {
+        password: 0,
+        __v: 0,
+      },
+    },
+  ];
+
+  const result = await User.aggregate(pipeline);
+
+  if (!result.length) {
     throw new ApiError(404, "No host is found in the database by this ID");
+  }
 
-  return result;
+  return result[0];
 };
 
 const updateHostStatusByIdToDB = async (
