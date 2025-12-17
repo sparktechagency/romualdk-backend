@@ -30,10 +30,6 @@ app.post(
   "/api/v1/payments/webhook/stripe",
   express.raw({ type: "application/json" }),
    PaymentController.stripeWebhook
-<<<<<<< HEAD
-=======
-
->>>>>>> bdff17780c4182c8505ef9d6e2160660ffad8e70
 );
 
 app.use(express.json());
