@@ -7,9 +7,7 @@ import { createBookingSchema } from "./booking.validation";
 
 const router = Router();
 
-
 router.post("/", auth(USER_ROLES.ADMIN, USER_ROLES.HOST, USER_ROLES.SUPER_ADMIN, USER_ROLES.USER), validateRequest(createBookingSchema as any), BookingController.createBooking) ;
-
 
 router.get("/my", auth(), BookingController.myBookings);
 router.get("/host", auth(), BookingController.hostBookings);
