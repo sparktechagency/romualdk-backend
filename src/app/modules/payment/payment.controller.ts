@@ -41,7 +41,6 @@ const success = catchAsync(async (_req: Request, res: Response) => {
 
 const cancel = catchAsync(async (_req: Request, res: Response) => {
   res.redirect("myapp://payment-failed");
-<<<<<<< Updated upstream
 });
 
 // -------- Export as object ----------
@@ -52,6 +51,3 @@ export const PaymentController = {
   success,
   cancel,
 };
-=======
-};
->>>>>>> Stashed changes

@@ -29,11 +29,8 @@ app.use(
 app.post(
   "/api/v1/payments/webhook/stripe",
   express.raw({ type: "application/json" }),
-<<<<<<< Updated upstream
    PaymentController.stripeWebhook
-=======
-  stripeWebhook,
->>>>>>> Stashed changes
+
 );
 
 app.use(express.json());

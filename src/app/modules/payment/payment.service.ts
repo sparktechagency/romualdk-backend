@@ -113,7 +113,6 @@ const handleWebhook = async (rawBody: Buffer, sig: string) => {
 
   return false;
 };
-<<<<<<< Updated upstream
 
 // -------- Export as object ----------
 
@@ -122,6 +121,3 @@ export const PaymentService = {
   handleWebhook,
 };
  
-=======
-// ...existing code...
->>>>>>> Stashed changes

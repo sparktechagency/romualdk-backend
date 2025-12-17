@@ -596,7 +596,7 @@ const getBookingBlockedHours = (bookings: any[], date: Date) => {
  * =========================
  * HELPER: FULL DAY BLOCK
  * =========================
- */
+*/
 
 const generateBlockedResponse = (date: Date, reason: string) => ({
   date: date.toISOString().split("T")[0],
