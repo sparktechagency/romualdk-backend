@@ -27,6 +27,10 @@ const createBooking = async (body: any, userId: string) => {
   return booking;
 };
 
+/*
+
+*/
+
 // -------- Get user bookings ----------
 
 const getUserBookings = async (userId: string, status?: string) => {

@@ -3,9 +3,10 @@ import { HOST_STATUS, STATUS, USER_ROLES } from "../../../enums/user";
 import { CAR_VERIFICATION_STATUS } from "../car/car.interface";
 import { Car } from "../car/car.model";
 import { User } from "../user/user.model";
+import { Booking } from "../booking/booking.model";
 
 const statCountsFromDB = async () => {
-  const [users, cars] = await Promise.all([
+  const [users, cars, bookings] = await Promise.all([
     User.countDocuments({
       verified: true,
       status: STATUS.ACTIVE,
@@ -14,11 +15,16 @@ const statCountsFromDB = async () => {
     Car.countDocuments({
       verificationStatus: CAR_VERIFICATION_STATUS.APPROVED,
     }),
+    Booking.countDocuments({
+      status: "paid",
+      carStatus: "completed"
+    })
   ]);
 
   return {
     users,
     cars,
+    bookings
   };
 };
 
