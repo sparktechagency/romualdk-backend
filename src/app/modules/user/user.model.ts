@@ -76,6 +76,10 @@ const userSchema = new Schema<IUser, UserModal>(
       enum: Object.values(GENDER),
       required: false,
     },
+    city: {
+      type: String,
+      required: false,
+    },
     status: {
       type: String,
       enum: Object.values(STATUS),

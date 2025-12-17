@@ -17,6 +17,7 @@ export type IUser = {
   password: string;
   dateOfBirth: string;
   gender?: GENDER;
+  city?: string;
   verified: boolean;
   status: STATUS;
   location?: {

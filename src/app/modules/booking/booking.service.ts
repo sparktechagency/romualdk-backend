@@ -28,7 +28,8 @@ const createBooking = async (body: any, userId: string) => {
 };
 
 /*
-
+1. ai agent build korte hobe, arpor nijer eccomerce business run korte hobe
+2. ai agent build korte hobe, page a integrate korte hobe, abong ai agent sell korte hobe
 */
 
 // -------- Get user bookings ----------
