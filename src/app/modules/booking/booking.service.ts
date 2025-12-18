@@ -106,16 +106,70 @@ const getUserBookings = async (userId: string, status?: string) => {
 // =======================MOSHFIQUR RAHMAN====================
 
 // -------- Get host bookings ----------
+// const getHostBookings = async (hostId: string, status?: string) => {
+//   const filter: any = { hostId };
+
+//   if (status) filter.carStatus = status;
+//   return Booking.find(filter)
+//     .populate("carId")
+//     .populate("userId")
+//     .populate("transactionId")
+//     .sort({ createdAt: -1 });
+// };
+
+// =======================MOSHFIQUR RAHMAN====================
 const getHostBookings = async (hostId: string, status?: string) => {
   const filter: any = { hostId };
 
   if (status) filter.carStatus = status;
-  return Booking.find(filter)
+
+  // ---------- STEP 1: Fetch bookings ----------
+  const bookings = await Booking.find(filter)
     .populate("carId")
     .populate("userId")
     .populate("transactionId")
-    .sort({ createdAt: -1 });
+    .sort({ createdAt: -1 })
+    .lean();
+
+  if (!bookings.length) return bookings;
+
+  // ---------- STEP 2: Extract carIds ----------
+  const carIds = bookings
+    .map((booking: any) => booking.carId?._id)
+    .filter(Boolean)
+    .map((id: any) => new Types.ObjectId(id));
+
+  // ---------- STEP 3: Trip count ----------
+  const tripCountMap = await getCarTripCountMap(carIds);
+
+  // ---------- STEP 4: Attach trips + rating ----------
+  const finalBookings = await Promise.all(
+    bookings.map(async (booking: any) => {
+      const carId = booking.carId?._id?.toString();
+
+      const reviewSummary =
+        await ReviewServices.getReviewSummaryFromDB(
+          carId,
+          REVIEW_TYPE.CAR
+        );
+
+      return {
+        ...booking,
+        carId: {
+          ...booking.carId,
+          trips: tripCountMap[carId] || 0,
+          averageRating: reviewSummary.averageRating,
+          totalReviews: reviewSummary.totalReviews,
+          starCounts: reviewSummary.starCounts,
+          reviews: reviewSummary.reviews,
+        },
+      };
+    })
+  );
+
+  return finalBookings;
 };
+// =======================MOSHFIQUR RAHMAN====================
 
 const checkIn = async (bookingId: string) => {
   const booking = await Booking.findById(bookingId);
