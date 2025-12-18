@@ -15,6 +15,7 @@ import { AnalyticsRoutes } from "../modules/analytics/analytics.route";
 
 import { bookingRoutes } from "../modules/booking/booking.routes";
 import { paymentRoutes } from "../modules/payment/payment.routes";
+import { stripeCEARoutes } from "../modules/stripeCEA/stripeCEA.routes";
 
 const router = express.Router();
 
@@ -76,6 +77,10 @@ const apiRoutes = [
     path: "/payments",
     route: paymentRoutes,
   },
+  {
+    path: "/stripe-accounts",
+    route: stripeCEARoutes,
+  }
 ];
 
 apiRoutes.forEach((route) => router.use(route.path, route.route));

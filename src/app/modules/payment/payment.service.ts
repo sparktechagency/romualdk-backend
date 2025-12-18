@@ -6,6 +6,7 @@ import { Booking } from "../booking/booking.model";
 import { Transaction, TransactionStatus, PaymentMethod } from "./transaction.model";
 import { BOOKING_STATUS, CAR_STATUS } from "../booking/booking.interface";
 import { InitiatePaymentDto } from "./payment.interface";
+import { User } from "../user/user.model";
 
 const createCheckoutSession = async (input: InitiatePaymentDto) => {
   const { bookingId, customerEmail, customerName, customerPhone } = input;
@@ -80,6 +81,8 @@ const handleWebhook = async (rawBody: Buffer, sig: string) => {
     return false;
   }
 
+   // ================= PAYMENT SUCCESS =================
+
   if (event.type === "checkout.session.completed") {
     const session = event.data.object as Stripe.Checkout.Session;
     const bookingId =
@@ -110,9 +113,26 @@ const handleWebhook = async (rawBody: Buffer, sig: string) => {
       return true;
     }
   }
+ 
+  // ================= STRIPE CONNECT ONBOARDING =================
+  if (event.type === "account.updated") {
+    const account = event.data.object as Stripe.Account;
+
+    await User.findOneAndUpdate(
+      { connectedAccountId: account.id },
+      {
+        onboardingCompleted: account.details_submitted,
+        payoutsEnabled: account.payouts_enabled,
+      },
+    );
+
+    return true;
+  }
 
   return false;
 };
+
+ 
 
 // -------- Export as object ----------
 
