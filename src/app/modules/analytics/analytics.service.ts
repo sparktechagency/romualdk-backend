@@ -96,6 +96,7 @@ const getGuestHostYearlyChart = async (year?: number) => {
   };
 };
 
+
 export const AnalyticsServices = {
   statCountsFromDB,
   getGuestHostYearlyChart,

@@ -15,6 +15,7 @@ import { ReviewServices } from "../review/review.service";
 import { REVIEW_TYPE } from "../review/review.interface";
 import { Booking } from "../booking/booking.model";
 import { BOOKING_STATUS } from "../booking/booking.interface";
+import { getCarTripCountMap } from "./car.utils";
 
 const createCarToDB = async (userId: string, payload: ICar) => {
   const user = await User.findOne({
@@ -827,10 +828,33 @@ const getSuggestedCarsFromDB = async (userId: string, limit: number = 10) => {
     select: "firstName lastName email phone role profileImage",
   });
 
-  console.log("Final populated cars:", populatedCars.length);
+
+  // ---------- STEP 5: Add trip count ----------
+  const carIds = populatedCars.map((car: any) => car._id);
+  const tripCountMap = await getCarTripCountMap(carIds);
+
+  const finalCars = await Promise.all(
+    populatedCars.map(async (car: any) => {
+      const reviewSummary =
+        await ReviewServices.getReviewSummaryFromDB(
+          car._id,
+          REVIEW_TYPE.CAR
+        );
+
+      return {
+        ...car,
+        trips: tripCountMap[car._id.toString()] || 0,
+        averageRating: reviewSummary.averageRating,
+        totalReviews: reviewSummary.totalReviews,
+        starCounts: reviewSummary.starCounts,
+        reviews: reviewSummary.reviews,
+      };
+    })
+  );
+
   console.log("===== END getSuggestedCarsFromDB =====");
 
-  return populatedCars;
+  return finalCars;
 };
 
 // =====================================================
