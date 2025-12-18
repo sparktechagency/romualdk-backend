@@ -3,10 +3,12 @@ import Stripe from "stripe";
 import stripe from "../../../config/stripe";
 import config from "../../../config";
 import { Booking } from "../booking/booking.model";
-import { Transaction, TransactionStatus, PaymentMethod } from "./transaction.model";
+import { Transaction, TransactionStatus, PaymentMethod, PayoutStatus } from "./transaction.model";
 import { BOOKING_STATUS, CAR_STATUS } from "../booking/booking.interface";
 import { InitiatePaymentDto } from "./payment.interface";
 import { User } from "../user/user.model";
+
+const COMMISSION_RATE = 0.15; // 15% commission
 
 const createCheckoutSession = async (input: InitiatePaymentDto) => {
   const { bookingId, customerEmail, customerName, customerPhone } = input;
@@ -132,6 +134,46 @@ const handleWebhook = async (rawBody: Buffer, sig: string) => {
   return false;
 };
 
+// ================= PAYOUT TO HOST =================
+const payoutToHost = async (bookingId: string) => {
+  const booking = await Booking.findById(bookingId);
+  if (!booking || booking.payoutProcessed || !booking.checkOut) return;
+
+  const host = await User.findById(booking.hostId);
+  console.log("Host info:", host);
+  if (!host?.connectedAccountId || !host.payoutsEnabled) {
+    throw new Error("Host payout not enabled");
+  }
+
+  const transaction = await Transaction.findById(booking.transactionId);
+  if (!transaction || transaction.status !== TransactionStatus.SUCCEEDED) {
+    throw new Error("Payment not completed");
+  }
+
+  const commission = Math.round(transaction.amount * COMMISSION_RATE);
+  const payoutAmount = transaction.amount - commission;
+
+  const transfer = await stripe.transfers.create({
+    amount: payoutAmount * 100,
+    currency: transaction.currency,
+    destination: host.connectedAccountId,
+    source_transaction: transaction.stripePaymentIntentId!,
+    
+  });
+
+  await Transaction.findByIdAndUpdate(transaction._id, {
+    commissionAmount: commission,
+    payoutStatus: PayoutStatus.SUCCEEDED,
+    stripeTransferId: transfer.id,
+    hostReceiptAmount: payoutAmount,
+  });
+
+  await Booking.findByIdAndUpdate(bookingId, {
+    payoutProcessed: true,
+    payoutAt: new Date(),
+  });
+};
+
  
 
 // -------- Export as object ----------
@@ -139,5 +181,6 @@ const handleWebhook = async (rawBody: Buffer, sig: string) => {
 export const PaymentService = {
   createCheckoutSession,
   handleWebhook,
+  payoutToHost,
 };
  

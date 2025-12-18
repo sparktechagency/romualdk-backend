@@ -35,6 +35,8 @@ export interface IBooking {
   checkIn?: boolean;
   checkOut?: boolean;
   isCancelled?: boolean;
+  payoutProcessed?: boolean;
+  payoutAt?: Date;
   createdAt: string;
   updatedAt: string;
 }

@@ -15,6 +15,12 @@ export enum TransactionStatus {
 
 export enum PaymentMethod { CARD = "card", }
 
+export enum PayoutStatus {
+  PENDING = "pending",
+  SUCCEEDED = "succeeded",
+  FAILED = "failed",
+}
+
 export interface ITransaction extends Document {
   bookingId: Types.ObjectId | string;
   amount: number;
@@ -25,6 +31,13 @@ export interface ITransaction extends Document {
   // provider?: PaymentProvider;
   stripeSessionId?: string;
   stripePaymentIntentId?: string;
+
+    // NEW
+  commissionAmount?: number;
+  payoutStatus?: PayoutStatus;
+  stripeTransferId?: string;
+  hostReceiptAmount?: number;
+
   createdAt: Date;
   updatedAt: Date;
 }
@@ -43,6 +56,15 @@ const transactionSchema = new Schema<ITransaction>(
     externalRef: { type: String },
     stripeSessionId: { type: String },
     stripePaymentIntentId: { type: String },
+    //  NEW
+    commissionAmount: { type: Number, default: 0 },
+    payoutStatus: {
+      type: String,
+      enum: Object.values(PayoutStatus),
+      default: PayoutStatus.PENDING,
+    },
+    stripeTransferId: String,
+    hostReceiptAmount: { type: Number, default: 0 },
   },
   { timestamps: true },
 );

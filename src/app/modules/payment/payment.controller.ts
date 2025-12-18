@@ -43,6 +43,19 @@ const cancel = catchAsync(async (_req: Request, res: Response) => {
   res.redirect("myapp://payment-failed");
 });
 
+const payoutToHostController = catchAsync(async (req: Request, res: Response) => {
+  const { bookingId } = req.params;
+
+  const result = await PaymentService.payoutToHost(bookingId);
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Host payout completed successfully",
+    data: result,
+  });
+});
+
 // -------- Export as object ----------
 
 export const PaymentController = {
@@ -50,4 +63,5 @@ export const PaymentController = {
   stripeWebhook,
   success,
   cancel,
+  payoutToHostController,
 };
