@@ -24,7 +24,7 @@ const userSchema = new Schema<IUser, UserModal>(
     hostStatus: {
       type: String,
       enum: Object.values(HOST_STATUS),
-      required: false,
+      default: HOST_STATUS.NONE,
     },
     phone: {
       type: String,
