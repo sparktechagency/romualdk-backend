@@ -21,6 +21,13 @@ export enum PayoutStatus {
   FAILED = "failed",
 }
 
+export enum RefundStatus {
+  NONE = "none",
+  PENDING = "pending",
+  SUCCEEDED = "succeeded",
+  FAILED = "failed",
+}
+
 export interface ITransaction extends Document {
   bookingId: Types.ObjectId | string;
   amount: number;
@@ -35,7 +42,13 @@ export interface ITransaction extends Document {
     // NEW
   commissionAmount?: number;
   payoutStatus?: PayoutStatus;
+  // Refund
+  refundId?: string;
+  refundAmount?: number;
+  refundStatus?: RefundStatus;
+  refundedAt?: Date;
   stripeTransferId?: string;
+  stripeChargeId?: string,
   hostReceiptAmount?: number;
 
   createdAt: Date;
@@ -46,7 +59,7 @@ const transactionSchema = new Schema<ITransaction>(
   {
     bookingId: { type: Schema.Types.ObjectId, ref: "Booking", required: true },
     amount: { type: Number, required: true },
-    currency: { type: String, default: "xof" },
+    currency: { type: String, default: "usd" },
     method: { type: String, enum: Object.values(PaymentMethod), default:  PaymentMethod.CARD },
     status: {
       type: String,
@@ -63,7 +76,18 @@ const transactionSchema = new Schema<ITransaction>(
       enum: Object.values(PayoutStatus),
       default: PayoutStatus.PENDING,
     },
-    stripeTransferId: String,
+    // Refund
+    refundId: { type: String },
+    refundAmount: { type: Number, default: 0 },
+    refundStatus: {
+      type: String,
+      enum: Object.values(RefundStatus),
+      default: RefundStatus.NONE,
+    },
+    refundedAt: { type: Date },
+    stripeTransferId: { type: String },
+    stripeChargeId: { type: String },
+
     hostReceiptAmount: { type: Number, default: 0 },
   },
   { timestamps: true },
