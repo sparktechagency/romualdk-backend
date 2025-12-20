@@ -6,6 +6,9 @@ import { getCarTripCountMap } from "../car/car.utils";
 import { Types } from "mongoose";
 import { ReviewServices } from "../review/review.service";
 import { REVIEW_TYPE } from "../review/review.interface";
+import Transaction from "../payment/transaction.model";
+import { calculateRefundPercentage } from "../../../util/refundCalculation";
+import { PaymentService } from "../payment/payment.service";
 
 // -------- Create Booking ----------
 const createBooking = async (body: any, userId: string) => {
@@ -80,11 +83,10 @@ const getUserBookings = async (userId: string, status?: string) => {
     bookings.map(async (booking: any) => {
       const carId = booking.carId?._id?.toString();
 
-      const reviewSummary =
-        await ReviewServices.getReviewSummaryFromDB(
-          carId,
-          REVIEW_TYPE.CAR
-        );
+      const reviewSummary = await ReviewServices.getReviewSummaryFromDB(
+        carId,
+        REVIEW_TYPE.CAR
+      );
 
       return {
         ...booking,
@@ -147,11 +149,10 @@ const getHostBookings = async (hostId: string, status?: string) => {
     bookings.map(async (booking: any) => {
       const carId = booking.carId?._id?.toString();
 
-      const reviewSummary =
-        await ReviewServices.getReviewSummaryFromDB(
-          carId,
-          REVIEW_TYPE.CAR
-        );
+      const reviewSummary = await ReviewServices.getReviewSummaryFromDB(
+        carId,
+        REVIEW_TYPE.CAR
+      );
 
       return {
         ...booking,
@@ -209,24 +210,76 @@ const checkOut = async (bookingId: string) => {
   return booking.save();
 };
 
+
 const isCancelled = async (bookingId: string) => {
   const booking = await Booking.findById(bookingId);
   if (!booking) throw new Error("Booking not found");
 
-  if (
-    // booking.status === BOOKING_STATUS.PAID &&
-    !booking.checkIn &&
-    !booking.checkOut &&
-    !booking.isCancelled
-  ) {
-    booking.isCancelled = true;
-    booking.carStatus = CAR_STATUS.CANCELLED;
-  } else {
-    throw new Error("Cannot cancel this booking");
+  if (booking.isCancelled)
+    throw new Error("Booking already cancelled");
+
+  if (booking.checkIn)
+    throw new Error("Cannot cancel after check-in");
+
+  // ---------- PAID BOOKING → REFUND ----------
+  if (booking.status === BOOKING_STATUS.PAID) {
+    if (booking.payoutProcessed)
+      throw new Error("Refund not allowed after host payout");
+
+    const transaction = await Transaction.findById(booking.transactionId);
+    if (!transaction)
+      throw new Error("Transaction not found");
+
+    const refundPercentage = calculateRefundPercentage(booking.fromDate);
+    if (refundPercentage === 0)
+      throw new Error("Refund not applicable");
+
+    await PaymentService.refundBookingPayment(
+      booking,
+      transaction,
+      refundPercentage
+    );
   }
 
-  return booking.save();
+  // ---------- CANCEL BOOKING (ONLY ONCE) ----------
+  booking.isCancelled = true;
+  booking.status = BOOKING_STATUS.CANCELLED;
+  booking.carStatus = CAR_STATUS.CANCELLED;
+
+  await booking.save();
+
+  return booking;
 };
+
+
+//  ==========Admin: Get all bookings ==========
+const getAllBookingsForAdmin = async (status?: string) => {
+  const filter: any = {};
+
+  if (status) filter.carStatus = status;
+
+  return Booking.find(filter)
+    .populate("carId")
+    .populate("userId")
+    .populate("hostId")
+    .populate("transactionId")
+    .sort({ createdAt: -1 });
+};
+
+// ============Get booking by ID ============
+const getBookingById = async (bookingId: string) => {
+  const booking = await Booking.findById(bookingId)
+    .populate("carId")
+    .populate("userId")
+    .populate("hostId")
+    .populate("transactionId");
+
+  if (!booking) throw new Error("Booking not found");
+
+  return booking;
+};
+
+
 // -------- Export as object ----------
 export const BookingService = {
   createBooking,
@@ -235,4 +288,6 @@ export const BookingService = {
   checkIn,
   checkOut,
   isCancelled,
+  getAllBookingsForAdmin,
+  getBookingById,
 };

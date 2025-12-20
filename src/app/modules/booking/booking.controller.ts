@@ -85,10 +85,43 @@ const isCancelledController = catchAsync(async (req: Request, res: Response) => 
   sendResponse(res, {
     statusCode: 200,
     success: true,
-    message: "Booking cancellation status updated",
+    message: "Booking cancelled & refund processed",
     data: { isCancelled: result },
   });
 });
+
+/* ================ Admin: All Bookings ================ */
+const getAllBookingsController = catchAsync(
+  async (req: Request, res: Response) => {
+    const status = req.query.status as string;
+
+    const result = await BookingService.getAllBookingsForAdmin(status);
+
+    sendResponse(res, {
+      statusCode: 200,
+      success: true,
+      message: "All bookings retrieved successfully",
+      data: result,
+    });
+  }
+);
+
+/* ================= Booking By ID ==================== */
+const getBookingByIdController = catchAsync(
+  async (req: Request, res: Response) => {
+    const bookingId = req.params.id;
+
+    const result = await BookingService.getBookingById(bookingId);
+
+    sendResponse(res, {
+      statusCode: 200,
+      success: true,
+      message: "Booking retrieved successfully",
+      data: result,
+    });
+  }
+);
+
 
 
 // -------- Export as object ----------
@@ -100,4 +133,6 @@ export const BookingController = {
   checkInController,
   checkOutController,
   isCancelledController,
+  getAllBookingsController,
+  getBookingByIdController,
 };

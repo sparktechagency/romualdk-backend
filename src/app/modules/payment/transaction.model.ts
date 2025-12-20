@@ -15,6 +15,19 @@ export enum TransactionStatus {
 
 export enum PaymentMethod { CARD = "card", }
 
+export enum PayoutStatus {
+  PENDING = "pending",
+  SUCCEEDED = "succeeded",
+  FAILED = "failed",
+}
+
+export enum RefundStatus {
+  NONE = "none",
+  PENDING = "pending",
+  SUCCEEDED = "succeeded",
+  FAILED = "failed",
+}
+
 export interface ITransaction extends Document {
   bookingId: Types.ObjectId | string;
   amount: number;
@@ -25,6 +38,19 @@ export interface ITransaction extends Document {
   // provider?: PaymentProvider;
   stripeSessionId?: string;
   stripePaymentIntentId?: string;
+
+    // NEW
+  commissionAmount?: number;
+  payoutStatus?: PayoutStatus;
+  // Refund
+  refundId?: string;
+  refundAmount?: number;
+  refundStatus?: RefundStatus;
+  refundedAt?: Date;
+  stripeTransferId?: string;
+  stripeChargeId?: string,
+  hostReceiptAmount?: number;
+
   createdAt: Date;
   updatedAt: Date;
 }
@@ -33,7 +59,7 @@ const transactionSchema = new Schema<ITransaction>(
   {
     bookingId: { type: Schema.Types.ObjectId, ref: "Booking", required: true },
     amount: { type: Number, required: true },
-    currency: { type: String, default: "xof" },
+    currency: { type: String, default: "usd" },
     method: { type: String, enum: Object.values(PaymentMethod), default:  PaymentMethod.CARD },
     status: {
       type: String,
@@ -43,6 +69,26 @@ const transactionSchema = new Schema<ITransaction>(
     externalRef: { type: String },
     stripeSessionId: { type: String },
     stripePaymentIntentId: { type: String },
+    //  NEW
+    commissionAmount: { type: Number, default: 0 },
+    payoutStatus: {
+      type: String,
+      enum: Object.values(PayoutStatus),
+      default: PayoutStatus.PENDING,
+    },
+    // Refund
+    refundId: { type: String },
+    refundAmount: { type: Number, default: 0 },
+    refundStatus: {
+      type: String,
+      enum: Object.values(RefundStatus),
+      default: RefundStatus.NONE,
+    },
+    refundedAt: { type: Date },
+    stripeTransferId: { type: String },
+    stripeChargeId: { type: String },
+
+    hostReceiptAmount: { type: Number, default: 0 },
   },
   { timestamps: true },
 );

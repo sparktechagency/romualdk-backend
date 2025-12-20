@@ -20,6 +20,8 @@ const bookingSchema = new Schema<IBooking>(
     checkIn: { type: Boolean, default: false },
     checkOut: { type: Boolean, default: false},
     isCancelled: { type: Boolean, default: false },
+    payoutProcessed: { type: Boolean, default: false },
+    payoutAt: { type: Date },
   },
   
   { timestamps: true, versionKey: false }

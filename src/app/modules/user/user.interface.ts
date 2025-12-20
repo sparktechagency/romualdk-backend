@@ -24,6 +24,13 @@ export type IUser = {
     type: "Point";
     coordinates: [number, number]; // [longitude, latitude],
   };
+
+  // stripe ....
+  connectedAccountId?: string;
+  onboardingCompleted?: boolean;
+  payoutsEnabled?: boolean;
+  // .... stripe
+
   authentication?: {
     isResetPassword: boolean;
     oneTimeCode: number;

@@ -101,6 +101,21 @@ const userSchema = new Schema<IUser, UserModal>(
         index: "2dsphere",
       },
     },
+    // stripe ....
+    connectedAccountId: {
+      type: String,
+      required: false,
+      default: null,
+    },
+    onboardingCompleted: {
+      type: Boolean,
+      default: false,
+    },
+    payoutsEnabled: {
+      type: Boolean,
+      default: false,
+    },
+    // .... stripe
     authentication: {
       type: {
         isResetPassword: {
