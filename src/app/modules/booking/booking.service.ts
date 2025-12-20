@@ -3,7 +3,7 @@ import { Car } from "../car/car.model";
 import { BOOKING_STATUS, CAR_STATUS, Driver_STATUS } from "./booking.interface";
 import { calculatePrice } from "../../../util/bookingCalculation";
 import { getCarTripCountMap } from "../car/car.utils";
-import { Types } from "mongoose";
+import mongoose, { Types } from "mongoose";
 import { ReviewServices } from "../review/review.service";
 import { REVIEW_TYPE } from "../review/review.interface";
 import Transaction from "../payment/transaction.model";
@@ -210,47 +210,96 @@ const checkOut = async (bookingId: string) => {
   return booking.save();
 };
 
+// const isCancelled = async (bookingId: string) => {
+//   const booking = await Booking.findById(bookingId);
+//   if (!booking) throw new Error("Booking not found");
+
+//   if (booking.isCancelled)
+//     throw new Error("Booking already cancelled");
+
+//   if (booking.checkIn)
+//     throw new Error("Cannot cancel after check-in");
+
+//   // ---------- PAID BOOKING → REFUND ----------
+//   if (booking.status === BOOKING_STATUS.PAID) {
+//     if (booking.payoutProcessed)
+//       throw new Error("Refund not allowed after host payout");
+
+//     const transaction = await Transaction.findById(booking.transactionId);
+//     if (!transaction)
+//       throw new Error("Transaction not found");
+
+//     const refundPercentage = calculateRefundPercentage(booking.fromDate);
+//     if (refundPercentage === 0)
+//       throw new Error("Refund not applicable");
+
+//     await PaymentService.refundBookingPayment(
+//       booking,
+//       transaction,
+//       refundPercentage
+//     );
+//   }
+
+//   // ---------- CANCEL BOOKING (ONLY ONCE) ----------
+//   booking.isCancelled = true;
+//   booking.status = BOOKING_STATUS.CANCELLED;
+//   booking.carStatus = CAR_STATUS.CANCELLED;
+
+//   await booking.save();
+
+//   return booking;
+// };
 
 const isCancelled = async (bookingId: string) => {
-  const booking = await Booking.findById(bookingId);
-  if (!booking) throw new Error("Booking not found");
+  const session = await mongoose.startSession();
+  session.startTransaction();
 
-  if (booking.isCancelled)
-    throw new Error("Booking already cancelled");
+  try {
+    const booking = await Booking.findById(bookingId).session(session);
+    if (!booking) throw new Error("Booking not found");
 
-  if (booking.checkIn)
-    throw new Error("Cannot cancel after check-in");
+    if (booking.isCancelled) throw new Error("Booking already cancelled");
 
-  // ---------- PAID BOOKING → REFUND ----------
-  if (booking.status === BOOKING_STATUS.PAID) {
-    if (booking.payoutProcessed)
-      throw new Error("Refund not allowed after host payout");
+    if (booking.checkIn) throw new Error("Cannot cancel after check-in");
 
-    const transaction = await Transaction.findById(booking.transactionId);
-    if (!transaction)
-      throw new Error("Transaction not found");
+    if (booking.status === BOOKING_STATUS.PAID) {
+      if (booking.payoutProcessed)
+        throw new Error("Refund not allowed after host payout");
 
-    const refundPercentage = calculateRefundPercentage(booking.fromDate);
-    if (refundPercentage === 0)
-      throw new Error("Refund not applicable");
+      const transaction = await Transaction.findById(
+        booking.transactionId
+      ).session(session);
 
-    await PaymentService.refundBookingPayment(
-      booking,
-      transaction,
-      refundPercentage
-    );
+      if (!transaction) throw new Error("Transaction not found");
+
+      const refundPercentage = calculateRefundPercentage(booking.fromDate);
+      if (refundPercentage === 0) throw new Error("Refund not applicable");
+
+      // Stripe call
+      await PaymentService.refundBookingPayment(
+        booking,
+        transaction,
+        refundPercentage,
+        session
+      );
+    }
+
+    booking.isCancelled = true;
+    booking.status = BOOKING_STATUS.CANCELLED;
+    booking.carStatus = CAR_STATUS.CANCELLED;
+
+    await booking.save({ session });
+
+    await session.commitTransaction();
+    session.endSession();
+
+    return booking;
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+    throw error;
   }
-
-  // ---------- CANCEL BOOKING (ONLY ONCE) ----------
-  booking.isCancelled = true;
-  booking.status = BOOKING_STATUS.CANCELLED;
-  booking.carStatus = CAR_STATUS.CANCELLED;
-
-  await booking.save();
-
-  return booking;
 };
-
 
 //  ==========Admin: Get all bookings ==========
 const getAllBookingsForAdmin = async (status?: string) => {
@@ -278,7 +327,6 @@ const getBookingById = async (bookingId: string) => {
 
   return booking;
 };
-
 
 // -------- Export as object ----------
 export const BookingService = {

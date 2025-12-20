@@ -28,6 +28,12 @@ export enum RefundStatus {
   FAILED = "failed",
 }
 
+export enum PayoutType {
+  FULL = "full",
+  PARTIAL = "partial",
+  NONE = "none",
+}
+
 export interface ITransaction extends Document {
   bookingId: Types.ObjectId | string;
   amount: number;
@@ -49,6 +55,7 @@ export interface ITransaction extends Document {
   refundedAt?: Date;
   stripeTransferId?: string;
   stripeChargeId?: string,
+  // payoutType?: PayoutType;
   hostReceiptAmount?: number;
 
   createdAt: Date;
@@ -87,6 +94,7 @@ const transactionSchema = new Schema<ITransaction>(
     refundedAt: { type: Date },
     stripeTransferId: { type: String },
     stripeChargeId: { type: String },
+    // payoutType: { type: String, enum: Object.values(PayoutType) },
 
     hostReceiptAmount: { type: Number, default: 0 },
   },

@@ -6,11 +6,18 @@ export const createBookingSchema = z.object({
     fromDate: z.string().datetime({ message: "Invalid fromDate format" }),
     toDate: z.string().datetime({ message: "Invalid toDate format" }),
     type: z.enum(['withDriver', 'withoutDriver'])
-  }).refine((data) => new Date(data.toDate) > new Date(data.fromDate), {
+  })
+  //  toDate > fromDate
+  .refine((data) => new Date(data.toDate) > new Date(data.fromDate), {
     message: "toDate must be after fromDate",
     path: ["toDate"]
+  })
+  //  fromDate >= current exact time
+  .refine((data) => new Date(data.fromDate).getTime() >= Date.now(), {
+    message: "fromDate cannot be in the past",
+    path: ["fromDate"]
   }),
 });
 
-
 export type CreateBookingInput = z.infer<typeof createBookingSchema>;
+

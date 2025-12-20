@@ -13,6 +13,7 @@ import {
 import { BOOKING_STATUS, CAR_STATUS } from "../booking/booking.interface";
 import { InitiatePaymentDto } from "./payment.interface";
 import { User } from "../user/user.model";
+import mongoose from "mongoose";
 
 const COMMISSION_RATE = 0.15; // 15% commission
 
@@ -216,44 +217,46 @@ const handleWebhook = async (rawBody: Buffer, sig: string) => {
 //   });
 // };
 
-
 const payoutToHost = async (bookingId: string) => {
   const booking = await Booking.findById(bookingId);
-  if (!booking || booking.payoutProcessed || !booking.checkOut) return;
+  if (!booking || booking.payoutProcessed) return;
+
+  const transaction = await Transaction.findById(booking.transactionId);
+  if (!transaction || transaction.status !== TransactionStatus.SUCCEEDED)
+    return;
+
+  const isEligibleForPayout =
+    booking.checkOut === true ||
+    (booking.status === BOOKING_STATUS.CANCELLED &&
+      (transaction.refundAmount ?? 0) > 0);
+
+  if (!isEligibleForPayout) return;
 
   const host = await User.findById(booking.hostId);
-  console.log("Host info:", host);
   if (!host?.connectedAccountId || !host.payoutsEnabled) {
     throw new Error("Host payout not enabled");
   }
 
-  const transaction = await Transaction.findById(booking.transactionId);
-  if (!transaction || transaction.status !== TransactionStatus.SUCCEEDED) {
-    throw new Error("Payment not completed");
-  }
-  if (!transaction.stripeChargeId) {
-    throw new Error("Stripe charge not found");
-  }
-
-  // ---------- Adjust for refund ----------
-  const refundedAmount = transaction.refundAmount || 0; // USD
+  const refundedAmount = transaction.refundAmount ?? 0; // USD
   const effectiveAmount = transaction.amount - refundedAmount;
 
+  // Full refund → host gets nothing
   if (effectiveAmount <= 0) {
-    // Refund full, host should get nothing
     await Booking.findByIdAndUpdate(bookingId, { payoutProcessed: true });
-    await Transaction.findByIdAndUpdate(transaction._id, { payoutStatus: PayoutStatus.SUCCEEDED });
+    await Transaction.findByIdAndUpdate(transaction._id, {
+      payoutStatus: PayoutStatus.SUCCEEDED,
+    });
     return;
   }
 
   const commission = Math.round(effectiveAmount * COMMISSION_RATE * 100); // cents
-  const payoutAmount = Math.round(effectiveAmount * 100) - commission; // cents
+  const payoutAmount = Math.round(effectiveAmount * 100) - commission;
 
   const transfer = await stripe.transfers.create({
     amount: payoutAmount,
     currency: transaction.currency,
     destination: host.connectedAccountId,
-    source_transaction: transaction.stripeChargeId,
+    source_transaction: transaction.stripeChargeId!,
   });
 
   await Transaction.findByIdAndUpdate(transaction._id, {
@@ -268,37 +271,46 @@ const payoutToHost = async (bookingId: string) => {
     payoutAt: new Date(),
   });
 };
+
 // ================ Refund  =================
 
 const refundBookingPayment = async (
   booking: any,
   transaction: any,
-  refundPercentage: number
+  refundPercentage: number,
+  session: mongoose.ClientSession
 ) => {
-  if (!transaction.stripeChargeId) throw new Error("Stripe charge not found");
+  if (!transaction.stripeChargeId) {
+    throw new Error("Stripe charge not found");
+  }
 
-  const refundAmount = Math.round(transaction.amount * refundPercentage * 100);
+  const refundAmountInCents = Math.round(
+    transaction.amount * refundPercentage * 100
+  );
 
+  //  Stripe call (EXTERNAL)
   const refund = await stripe.refunds.create(
     {
       charge: transaction.stripeChargeId,
-      amount: refundAmount,
+      amount: refundAmountInCents,
     },
     {
       idempotencyKey: `refund_${booking._id}`,
     }
   );
 
+  //  DB update (ATOMIC via session)
   transaction.refundId = refund.id;
-  transaction.refundAmount = refundAmount / 100;
+  transaction.refundAmount = refundAmountInCents / 100;
   transaction.refundStatus = RefundStatus.PENDING;
   transaction.status = TransactionStatus.CANCELED;
 
-  await transaction.save();
+  await transaction.save({ session });
 
+  //  Optional but useful response
   return {
     refundId: refund.id,
-    refundAmount: refundAmount / 100,
+    refundAmount: refundAmountInCents / 100,
     refundPercentage: refundPercentage * 100,
   };
 };
