@@ -377,11 +377,13 @@ const deleteBookingByAdmin = async (bookingId: string) => {
 // ========== Get booking status stats for chart ==========
 
 
-const getBookingStatusStats = async (year: number, month: number) => {
-  const start = new Date(year, month - 1, 1);
-  const end = new Date(year, month, 1);
+const getBookingStatusStats = async (year?: number) => {
+  // Default to current year if not provided
+  const targetYear = year ?? new Date().getFullYear();
 
-  // Aggregation to compute chart statuses for bookings starting in the given month/year
+  const start = new Date(targetYear, 0, 1);        // January 1, targetYear
+  const end = new Date(targetYear + 1, 0, 1);      // January 1, next year
+
   const stats = await Booking.aggregate([
     {
       $match: {
@@ -393,18 +395,9 @@ const getBookingStatusStats = async (year: number, month: number) => {
         chartStatus: {
           $switch: {
             branches: [
-              {
-                case: { $eq: ["$carStatus", CAR_STATUS.COMPLETED] },
-                then: "Completed",
-              },
-              {
-                case: { $eq: ["$carStatus", CAR_STATUS.ONGOING] },
-                then: "Active",
-              },
-              {
-                case: { $eq: ["$carStatus", CAR_STATUS.CANCELLED] },
-                then: "Cancelled",
-              },
+              { case: { $eq: ["$carStatus", CAR_STATUS.COMPLETED] }, then: "Completed" },
+              { case: { $eq: ["$carStatus", CAR_STATUS.ONGOING] },    then: "Active" },
+              { case: { $eq: ["$carStatus", CAR_STATUS.CANCELLED] }, then: "Cancelled" },
               {
                 case: {
                   $and: [
@@ -428,24 +421,26 @@ const getBookingStatusStats = async (year: number, month: number) => {
     },
   ]);
 
-  // Calculate total bookings (excluding "Other" if needed, but including for now)
-  const total = stats.reduce((sum, item) => sum + item.count, 0);
+  const total = stats.reduce((sum, item) => sum + item.count, 0) || 1; // avoid divide by zero
 
-  // Prepare result with percentages
   const result: Record<string, string> = {};
   stats.forEach((item) => {
-    if (item._id !== "Other") {  // Skip "Other" if not needed in chart
-      result[item._id] = ((item.count / total) * 100).toFixed(0) + "%";
+    if (item._id !== "Other") {
+      const percentage = Math.round((item.count / total) * 100);
+      result[item._id] = percentage + "%";
     }
   });
 
-  // Ensure all categories are present, even if 0%
-  if (!result["Completed"]) result["Completed"] = "0%";
-  if (!result["Upcoming"]) result["Upcoming"] = "0%";
-  if (!result["Active"]) result["Active"] = "0%";
-  if (!result["Cancelled"]) result["Cancelled"] = "0%";
+  // Always return all 4 categories (even if 0%)
+  const categories = ["Completed", "Upcoming", "Active", "Cancelled"];
+  categories.forEach((cat) => {
+    if (!result[cat]) result[cat] = "0%";
+  });
 
-  return result;
+  return {
+    year: targetYear,
+    stats: result,
+  };
 };
  
 
