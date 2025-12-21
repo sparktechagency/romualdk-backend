@@ -14,6 +14,12 @@ router.get(
 );
 
 router.get(
+  "/platform-revenue",
+  auth(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN),
+  TransactionController.getPlatformRevenue  // ei controller ta thakte hobe
+);
+
+router.get(
   "/:id",
   auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN),
   TransactionController.getTransactionById
@@ -30,6 +36,8 @@ router.delete(
   auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN),
   TransactionController.deleteTransaction
 );
+
+// transaction.routes.ts
 
 export const transactionRoutes = router;
 

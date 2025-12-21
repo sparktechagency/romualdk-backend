@@ -1,6 +1,6 @@
  
 import { Types } from "mongoose";
-import Transaction from "../payment/transaction.model";
+import Transaction, { PayoutStatus, TransactionStatus } from "../payment/transaction.model";
 import QueryBuilder from "../../builder/queryBuilder";
 
 interface GetTransactionsQuery {
@@ -14,7 +14,12 @@ interface GetTransactionsQuery {
 }
 
 const getAllTransactions = async (query: GetTransactionsQuery) => {
-  const baseQuery = Transaction.find();
+  const baseQuery = Transaction.find().populate("bookingId").populate({
+    path: "bookingId",
+    populate: { path: "carId userId hostId" },
+  });
+
+    ;
   const qb = new QueryBuilder(baseQuery, query);
 
   qb.search(["_id", "bookingId", "method", "status"])
@@ -52,9 +57,63 @@ const deleteTransaction = async (id: string) => {
   return transaction;
 };
 
+// ========== Get platform monthly revenue ==========
+const getPlatformMonthlyRevenue = async (year?: number) => {
+  const targetYear = year ?? new Date().getFullYear();
+
+  const startOfYear = new Date(targetYear, 0, 1);           // 1 Jan, targetYear
+  const endOfYear = new Date(targetYear + 1, 0, 1);         // 1 Jan, next year
+
+  const revenueData = await Transaction.aggregate([
+    {
+      $match: {
+        status: TransactionStatus.SUCCEEDED,           // customer paid
+        payoutStatus: PayoutStatus.SUCCEEDED,          // host ke payout kora hoyeche 
+        commissionAmount: { $gt: 0 },                  // commission ache
+        updatedAt: { $gte: startOfYear, $lt: endOfYear }, // payout howar month 
+      },
+    },
+    {
+      $group: {
+        _id: { $month: "$updatedAt" },                 // payout month
+        revenue: { $sum: "$commissionAmount" },
+      },
+    },
+    {
+      $sort: { _id: 1 },
+    },
+  ]);
+
+  // 12 months er full array banao (jate 0% month o dekha jay)
+  const months = [
+    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+  ];
+
+  const monthlyRevenue = months.map((monthName, index) => {
+    const monthNumber = index + 1;
+    const data = revenueData.find(item => item._id === monthNumber);
+    return {
+      month: monthNumber,
+      monthName,
+      revenue: data ? Math.round(data.revenue) : 0,
+    };
+  });
+
+  const totalRevenue = monthlyRevenue.reduce((sum, m) => sum + m.revenue, 0);
+
+  return {
+    year: targetYear,
+    totalRevenue,
+    monthly: monthlyRevenue,
+  };
+};
+
+
 export const TransactionService = {
   getAllTransactions,
   getTransactionById,
   updateTransaction,
   deleteTransaction,
+  getPlatformMonthlyRevenue,
 };

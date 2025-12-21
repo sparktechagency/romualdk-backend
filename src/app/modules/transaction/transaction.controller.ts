@@ -45,9 +45,31 @@ const deleteTransaction = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+// ========== Get platform monthly revenue ==========
+const getPlatformRevenue = catchAsync(async (req: Request, res: Response) => {
+  const year = req.query.year ? Number(req.query.year) : undefined;
+
+  if (year && (isNaN(year) || year < 2010 || year > 2100)) {
+    return sendResponse(res, {
+      statusCode: 400,
+      success: false,
+      message: "Invalid year",
+    });
+  }
+
+  const result = await TransactionService.getPlatformMonthlyRevenue(year);
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Platform revenue retrieved successfully",
+    data: result,
+  });
+});
 export const TransactionController = {
   getAllTransactions,
   getTransactionById,
   updateTransaction,
   deleteTransaction,
+  getPlatformRevenue,
 };
