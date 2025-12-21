@@ -374,6 +374,81 @@ const deleteBookingByAdmin = async (bookingId: string) => {
 };
 
 
+// ========== Get booking status stats for chart ==========
+
+
+const getBookingStatusStats = async (year: number, month: number) => {
+  const start = new Date(year, month - 1, 1);
+  const end = new Date(year, month, 1);
+
+  // Aggregation to compute chart statuses for bookings starting in the given month/year
+  const stats = await Booking.aggregate([
+    {
+      $match: {
+        fromDate: { $gte: start, $lt: end },
+      },
+    },
+    {
+      $addFields: {
+        chartStatus: {
+          $switch: {
+            branches: [
+              {
+                case: { $eq: ["$carStatus", CAR_STATUS.COMPLETED] },
+                then: "Completed",
+              },
+              {
+                case: { $eq: ["$carStatus", CAR_STATUS.ONGOING] },
+                then: "Active",
+              },
+              {
+                case: { $eq: ["$carStatus", CAR_STATUS.CANCELLED] },
+                then: "Cancelled",
+              },
+              {
+                case: {
+                  $and: [
+                    { $eq: ["$status", BOOKING_STATUS.PAID] },
+                    { $eq: ["$checkIn", false] },
+                  ],
+                },
+                then: "Upcoming",
+              },
+            ],
+            default: "Other",
+          },
+        },
+      },
+    },
+    {
+      $group: {
+        _id: "$chartStatus",
+        count: { $sum: 1 },
+      },
+    },
+  ]);
+
+  // Calculate total bookings (excluding "Other" if needed, but including for now)
+  const total = stats.reduce((sum, item) => sum + item.count, 0);
+
+  // Prepare result with percentages
+  const result: Record<string, string> = {};
+  stats.forEach((item) => {
+    if (item._id !== "Other") {  // Skip "Other" if not needed in chart
+      result[item._id] = ((item.count / total) * 100).toFixed(0) + "%";
+    }
+  });
+
+  // Ensure all categories are present, even if 0%
+  if (!result["Completed"]) result["Completed"] = "0%";
+  if (!result["Upcoming"]) result["Upcoming"] = "0%";
+  if (!result["Active"]) result["Active"] = "0%";
+  if (!result["Cancelled"]) result["Cancelled"] = "0%";
+
+  return result;
+};
+ 
+
 // -------- Export as object ----------
 export const BookingService = {
   createBooking,
@@ -386,4 +461,5 @@ export const BookingService = {
   getBookingById,
   updateBookingByAdmin,
   deleteBookingByAdmin,
+  getBookingStatusStats,
 };

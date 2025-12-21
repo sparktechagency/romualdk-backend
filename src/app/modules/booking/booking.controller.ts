@@ -152,6 +152,25 @@ const deleteBookingByAdminController = catchAsync(
   }
 );
 
+// ========== Get booking status stats for chart ==========
+
+const getBookingStatusStatsController = catchAsync(async (req: Request, res: Response) => {
+  const { year, month } = req.query;
+
+  if (!year || !month) {
+    throw new Error("Year and month are required");
+  }
+
+  const result = await BookingService.getBookingStatusStats(Number(year), Number(month));
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Booking status stats retrieved successfully",
+    data: result,
+  });
+});
+ 
 // -------- Export as object ----------
 
 export const BookingController = {
@@ -165,4 +184,5 @@ export const BookingController = {
   getBookingByIdController,
   updateBookingByAdminController,
   deleteBookingByAdminController,
+  getBookingStatusStatsController,
 };
