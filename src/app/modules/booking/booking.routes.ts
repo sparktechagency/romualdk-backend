@@ -16,5 +16,7 @@ router.patch("/check-out/:id", auth(USER_ROLES.ADMIN, USER_ROLES.HOST, USER_ROLE
 router.patch("/is-cancelled/:id", auth(USER_ROLES.ADMIN, USER_ROLES.HOST, USER_ROLES.SUPER_ADMIN, USER_ROLES.USER), BookingController.isCancelledController );
 router.get("/", auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN), BookingController.getAllBookingsController);
 router.get("/:id", auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN, USER_ROLES.HOST, USER_ROLES.USER), BookingController.getBookingByIdController);
+router.patch("/:id", auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN), BookingController.updateBookingByAdminController);
+router.delete("/:id", auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN), BookingController.deleteBookingByAdminController);
 
 export const bookingRoutes = router;

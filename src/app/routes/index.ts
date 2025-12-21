@@ -16,6 +16,7 @@ import { AnalyticsRoutes } from "../modules/analytics/analytics.route";
 import { bookingRoutes } from "../modules/booking/booking.routes";
 import { paymentRoutes } from "../modules/payment/payment.routes";
 import { stripeCEARoutes } from "../modules/stripeCEA/stripeCEA.routes";
+import { transactionRoutes } from "../modules/transaction/transaction.routes";
 
 const router = express.Router();
 
@@ -80,6 +81,10 @@ const apiRoutes = [
   {
     path: "/stripe-accounts",
     route: stripeCEARoutes,
+  },
+  {
+    path: "/transactions",
+    route: transactionRoutes
   }
 ];
 

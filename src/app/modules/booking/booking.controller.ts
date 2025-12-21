@@ -90,21 +90,21 @@ const isCancelledController = catchAsync(async (req: Request, res: Response) => 
   });
 });
 
-/* ================ Admin: All Bookings ================ */
+/* ============ Admin: Get All Bookings (Advanced) ============ */
 const getAllBookingsController = catchAsync(
   async (req: Request, res: Response) => {
-    const status = req.query.status as string;
-
-    const result = await BookingService.getAllBookingsForAdmin(status);
+    const result = await BookingService.getAllBookingsForAdmin(req.query);
 
     sendResponse(res, {
       statusCode: 200,
       success: true,
       message: "All bookings retrieved successfully",
-      data: result,
+      data: result.data,
+      meta: result.meta,
     });
   }
 );
+
 
 /* ================= Booking By ID ==================== */
 const getBookingByIdController = catchAsync(
@@ -122,7 +122,35 @@ const getBookingByIdController = catchAsync(
   }
 );
 
+/* ============ Admin: Update Booking ============ */
+const updateBookingByAdminController = catchAsync(
+  async (req: Request, res: Response) => {
+    const { id } = req.params;
+    const result = await BookingService.updateBookingByAdmin(id, req.body);
 
+    sendResponse(res, {
+      statusCode: 200,
+      success: true,
+      message: "Booking updated successfully",
+      data: result,
+    });
+  }
+);
+
+/* ============ Admin: Delete Booking ============ */
+const deleteBookingByAdminController = catchAsync(
+  async (req: Request, res: Response) => {
+    const { id } = req.params;
+    const result = await BookingService.deleteBookingByAdmin(id);
+
+    sendResponse(res, {
+      statusCode: 200,
+      success: true,
+      message: "Booking deleted successfully",
+      data: result,
+    });
+  }
+);
 
 // -------- Export as object ----------
 
@@ -135,4 +163,6 @@ export const BookingController = {
   isCancelledController,
   getAllBookingsController,
   getBookingByIdController,
+  updateBookingByAdminController,
+  deleteBookingByAdminController,
 };

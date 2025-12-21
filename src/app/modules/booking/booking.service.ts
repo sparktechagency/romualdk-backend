@@ -9,6 +9,7 @@ import { REVIEW_TYPE } from "../review/review.interface";
 import Transaction from "../payment/transaction.model";
 import { calculateRefundPercentage } from "../../../util/refundCalculation";
 import { PaymentService } from "../payment/payment.service";
+import QueryBuilder from "../../builder/queryBuilder";
 
 // -------- Create Booking ----------
 const createBooking = async (body: any, userId: string) => {
@@ -302,17 +303,25 @@ const isCancelled = async (bookingId: string) => {
 };
 
 //  ==========Admin: Get all bookings ==========
-const getAllBookingsForAdmin = async (status?: string) => {
-  const filter: any = {};
-
-  if (status) filter.carStatus = status;
-
-  return Booking.find(filter)
+const getAllBookingsForAdmin = async (query: Record<string, any>) => {
+  const baseQuery = Booking.find()
     .populate("carId")
     .populate("userId")
     .populate("hostId")
-    .populate("transactionId")
-    .sort({ createdAt: -1 });
+    .populate("transactionId");
+
+  const qb = new QueryBuilder(baseQuery, query);
+
+  qb.search(["status", "carStatus", "_id", "checkIn", "checkOut", "isCancelled","type", "fromDate", "toDate"])
+    .filter()
+    .sort()
+    .paginate()
+    .fields();
+
+  const data = await qb.modelQuery;
+  const meta = await qb.countTotal();
+
+  return { data, meta };
 };
 
 // ============Get booking by ID ============
@@ -328,6 +337,43 @@ const getBookingById = async (bookingId: string) => {
   return booking;
 };
 
+// ===========Update booking by ID ===========
+
+const updateBookingByAdmin = async (
+  bookingId: string,
+  payload: Partial<any>
+) => {
+  if (!Types.ObjectId.isValid(bookingId))
+    throw new Error("Invalid booking id");
+
+  const booking = await Booking.findByIdAndUpdate(
+    bookingId,
+    payload,
+    { new: true }
+  )
+    .populate("carId")
+    .populate("userId")
+    .populate("hostId")
+    .populate("transactionId");
+
+  if (!booking) throw new Error("Booking not found");
+
+  return booking;
+};
+
+// ==========Delete booking by ID ===========
+
+const deleteBookingByAdmin = async (bookingId: string) => {
+  if (!Types.ObjectId.isValid(bookingId))
+    throw new Error("Invalid booking id");
+
+  const booking = await Booking.findByIdAndDelete(bookingId);
+  if (!booking) throw new Error("Booking not found");
+
+  return booking;
+};
+
+
 // -------- Export as object ----------
 export const BookingService = {
   createBooking,
@@ -338,4 +384,6 @@ export const BookingService = {
   isCancelled,
   getAllBookingsForAdmin,
   getBookingById,
+  updateBookingByAdmin,
+  deleteBookingByAdmin,
 };
