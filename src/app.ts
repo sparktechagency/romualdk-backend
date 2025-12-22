@@ -11,6 +11,13 @@ import { globalRateLimiter } from "./app/middlewares/rateLimiter";
 
 const app: Application = express();
 
+
+app.post(
+  "/api/v1/payments/webhook/stripe",
+  express.raw({ type: "application/json" }),
+  PaymentController.stripeWebhook
+);
+
 app.set("view engine", "ejs");
 app.set("views", path.join(__dirname, "views"));
 
@@ -21,27 +28,19 @@ app.use(Morgan.errorHandler);
 //body parser
 app.use(
   cors({
-    origin: ["http://10.10.7.46:30011"],
+    origin: ["http://10.10.7.46:30011", "http://10.10.7.41:5003"],
     credentials: true,
   }),
 );
 
-app.post(
-  "/api/v1/payments/webhook/stripe",
-  express.raw({ type: "application/json" }),
-   PaymentController.stripeWebhook
-);
 
 app.use(express.json());
 
 app.use(express.urlencoded({ extended: true }));
 
- 
-//  GLOBAL RATE LIMITER — EXACT PLACE
- 
-app.use(globalRateLimiter);
 
- 
+
+
 
 //file retrieve
 app.use(express.static("uploads"));

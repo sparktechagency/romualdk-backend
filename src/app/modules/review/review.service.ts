@@ -73,7 +73,7 @@ const getReviewSummaryFromDB = async (
   const totalReviews = summary.reduce((a, c) => a + c.count, 0);
   const totalScore = summary.reduce((a, c) => a + c._id * c.count, 0);
   const average = totalReviews ? totalScore / totalReviews : 0;
-
+  
   const starCounts: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
   summary.forEach((item) => {
     const rating = item._id as number;

@@ -4,13 +4,14 @@ import { CAR_VERIFICATION_STATUS } from "../car/car.interface";
 import { Car } from "../car/car.model";
 import { User } from "../user/user.model";
 import { Booking } from "../booking/booking.model";
+import Transaction from "../payment/transaction.model";
 
 const statCountsFromDB = async () => {
-  const [users, cars, bookings] = await Promise.all([
+  const [users, cars, bookings, revenue] = await Promise.all([
     User.countDocuments({
       verified: true,
       status: STATUS.ACTIVE,
-      role: USER_ROLES.HOST || USER_ROLES.USER,
+      role: { $in: [USER_ROLES.HOST, USER_ROLES.USER] },
     }),
     Car.countDocuments({
       verificationStatus: CAR_VERIFICATION_STATUS.APPROVED,
@@ -18,13 +19,29 @@ const statCountsFromDB = async () => {
     Booking.countDocuments({
       status: "paid",
       carStatus: "completed"
-    })
+    }),
+
+    Transaction.aggregate([
+      {
+        $match: {
+          status: "succeeded", // optional but recommended
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          totalCommission: { $sum: "$commissionAmount" },
+        },
+      },
+    ]),
+
   ]);
 
   return {
     users,
     cars,
-    bookings
+    bookings,
+    revenue: revenue[0].totalCommission || 0
   };
 };
 

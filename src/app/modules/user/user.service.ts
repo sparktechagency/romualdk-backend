@@ -185,6 +185,13 @@ const createHostRequestToDB = async (
     );
   }
 
+  if (!payload.drivingLicenseFrontPic || !payload.drivingLicenseBackPic) {
+    throw new ApiError(
+      400,
+      "Driving license front and back picture is required",
+    );
+  }
+
   user.nidFrontPic = payload.nidFrontPic;
   user.nidBackPic = payload.nidBackPic;
   if (payload.drivingLicenseFrontPic)
