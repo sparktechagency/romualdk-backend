@@ -100,12 +100,16 @@ const userSchema = new Schema<IUser, UserModal>(
         default: [0, 0],
         index: "2dsphere",
       },
+      address: {
+        type: String,
+        default: "",
+      },
     },
     // stripe ....
     connectedAccountId: {
       type: String,
       required: false,
-      default: null,
+      default: "",
     },
     onboardingCompleted: {
       type: Boolean,

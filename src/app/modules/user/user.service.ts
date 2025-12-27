@@ -99,7 +99,7 @@ const createUserToDB = async (payload: Partial<IUser>) => {
   const createToken = jwtHelper.createToken(
     {
       id: createUser._id,
-      email: createUser.email,
+      phone: createUser.phone,
       role: createUser.role,
     },
     config.jwt.jwt_secret as Secret,
@@ -157,13 +157,28 @@ const switchProfileToDB = async (
   if (![USER_ROLES.USER, USER_ROLES.HOST].includes(role))
     throw new ApiError(400, "Role is mustbe either 'USER' or 'HOST'");
 
-  if (role === USER_ROLES.HOST && user.hostStatus !== HOST_STATUS.APPROVED) {
-    throw new ApiError(400, "User cannot switch to host before admin approval");
-  }
+  // if (role === USER_ROLES.HOST && user.hostStatus !== HOST_STATUS.APPROVED) {
+  //   throw new ApiError(400, "User cannot switch to host before admin approval");
+  // }
 
-  const result = await User.findByIdAndUpdate(userId, { role }, { new: true });
+  const updatedUser = await User.findByIdAndUpdate(userId, { role }, { new: true });
 
-  if (!result) throw new ApiError(400, "Failed to update role");
+  if (!updatedUser) throw new ApiError(400, "Failed to update role");
+
+  const createToken = jwtHelper.createToken(
+    {
+      id: updatedUser._id,
+      phone: updatedUser.phone,
+      role: updatedUser.role,
+    },
+    config.jwt.jwt_secret as Secret,
+    config.jwt.jwt_expire_in as string,
+  );
+
+  const result = {
+    token: createToken,
+    user: updatedUser,
+  };
 
   return result;
 };
