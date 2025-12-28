@@ -82,6 +82,9 @@ const updateProfile = catchAsync(async (req, res) => {
   if ("role" in req.body) {
     delete req.body.role;
   }
+  if ("phone" in req.body) {
+    delete req.body.phone;
+  }
   // If password is provided
   if (req.body.password) {
     req.body.password = await bcrypt.hash(
@@ -214,6 +217,21 @@ const updateUserStatusById = catchAsync(async (req, res) => {
   });
 });
 
+const updateAdminStatusById = catchAsync(async (req, res) => {
+  const { id } = req.params;
+
+  const { status } = req.body;
+
+  const result = await UserService.updateAdminStatusByIdToDB(id, status);
+
+  sendResponse(res, {
+    success: true,
+    statusCode: 200,
+    message: "Admin status updated successfully",
+    data: result,
+  });
+});
+
 const deleteUserById = catchAsync(async (req, res) => {
   const { id } = req.params;
 
@@ -262,6 +280,19 @@ const getHostById = catchAsync(async (req, res) => {
     message: "Successfully retrieve host by ID",
     data: result,
   });
+
+});
+const getHostDetailsById = catchAsync(async (req, res) => {
+  const { id } = req.params;
+  console.log(id, "ID");
+  const result = await UserService.getHostDetailsByIdFromDB(id);
+
+  sendResponse(res, {
+    success: true,
+    statusCode: 200,
+    message: "Successfully retrieve host details by ID",
+    data: result,
+  });
 });
 
 const updateHostStatusById = catchAsync(async (req, res) => {
@@ -295,9 +326,11 @@ export const UserController = {
   getAllUsers,
   getUserById,
   updateUserStatusById,
+  updateAdminStatusById,
   deleteUserById,
   deleteProfile,
   getAllHosts,
   getHostById,
   updateHostStatusById,
+  getHostDetailsById,
 };

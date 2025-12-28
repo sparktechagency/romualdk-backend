@@ -15,7 +15,7 @@ import { ReviewServices } from "../review/review.service";
 import { REVIEW_TYPE } from "../review/review.interface";
 import { Booking } from "../booking/booking.model";
 import { BOOKING_STATUS } from "../booking/booking.interface";
-import { getCarTripCountMap } from "./car.utils";
+import { checkCarAvailabilityByDate, getCarCalendar, getCarTripCount, getCarTripCountMap } from "./car.utils";
 
 const createCarToDB = async (userId: string, payload: ICar) => {
   const user = await User.findOne({
@@ -30,6 +30,14 @@ const createCarToDB = async (userId: string, payload: ICar) => {
 
   payload.userId = new Types.ObjectId(userId);
 
+  if (payload.facilities?.length) {
+    payload.facilities.forEach(facility => {
+      if (!facility.label || !facility.value) {
+        throw new ApiError(400, "Each facility must have label and value");
+      }
+    });
+  }
+
   const result = await Car.create(payload);
 
   if (!result) {
@@ -40,55 +48,211 @@ const createCarToDB = async (userId: string, payload: ICar) => {
 };
 
 // for feed
+// const getAllCarsFromDB = async (query: any, userId: string) => {
+//   const baseQuery = Car.find({
+//     verificationStatus: CAR_VERIFICATION_STATUS.APPROVED,
+//   }).populate({
+//     path: "userId",
+//     select: "firstName lastName fullName role profileImage email phone",
+//   });
+
+//   const queryBuilder = new QueryBuilder(baseQuery, query)
+//     .search(["brand", "model", "transmission", "color", "city", "licensePlate"])
+//     .sort()
+//     .fields()
+//     .filter()
+//     .paginate();
+
+//   const cars = await queryBuilder.modelQuery;
+
+//   const now = new Date();
+
+
+//   const carsWithBookmark = await Promise.all(
+//     cars.map(async (car: any) => {
+
+//       const tripsCountMap = await getCarTripCountMap([car._id]);
+
+//       const availabilityCalendar = await getCarCalendar(car._id.toString());
+
+//       const isBookmarked = await FavouriteCar.exists({
+//         userId,
+//         referenceId: car._id,
+//       });
+
+//       const reviewSummary = await ReviewServices.getReviewSummaryFromDB(
+//         car.id,
+//         REVIEW_TYPE.CAR,
+//       );
+
+//       const isAvailable = await checkCarAvailabilityByDate(car, now);
+
+
+//       return {
+//         ...car.toObject(),
+//         isAvailable,
+//         availabilityCalendar,
+//         trips: tripsCountMap[car._id.toString()] || 0,
+//         isFavourite: Boolean(isBookmarked),
+//         averageRating: reviewSummary.averageRating,
+//         totalReviews: reviewSummary.totalReviews,
+//         starCounts: reviewSummary.starCounts,
+//         reviews: reviewSummary.reviews,
+//       };
+//     }),
+//   );
+
+//   const meta = await queryBuilder.countTotal();
+
+//   if (!cars || cars.length === 0) {
+//     throw new ApiError(404, "No cars are found in the database");
+//   }
+
+//   return {
+//     data: carsWithBookmark,
+//     meta,
+//   };
+// };
+
 const getAllCarsFromDB = async (query: any, userId: string) => {
-  const baseQuery = Car.find({
+  const {
+    searchTerm,
+    minPrice, maxPrice,
+    transmission,
+    fuelType,
+    color,
+    city,
+    rating,
+    latitude, longitude, maxDistance,
+    date,
+    time,
+    sort,
+    page = 1,
+    limit = 10
+  } = query;
+
+  // ---------- create dynamic object ----------
+  const filter: any = {
     verificationStatus: CAR_VERIFICATION_STATUS.APPROVED,
-  }).populate({
-    path: "userId",
-    select: "firstName lastName fullName role profileImage email phone",
-  });
+    isActive: true
+  };
 
-  const queryBuilder = new QueryBuilder(baseQuery, query)
-    .search(["brand", "model", "transmission", "color", "city", "licensePlate"])
-    .sort()
-    .fields()
-    .filter()
-    .paginate();
+  // search logic
+  if (searchTerm) {
+    filter.$or = [
+      { brand: { $regex: searchTerm, $options: "i" } },
+      { model: { $regex: searchTerm, $options: "i" } },
+      { city: { $regex: searchTerm, $options: "i" } },
+    ];
+  }
 
-  const cars = await queryBuilder.modelQuery;
+  // Price Range (Combine logic)
+  if (minPrice || maxPrice) {
+    filter.dailyPrice = {};
+    if (minPrice) filter.dailyPrice.$gte = Number(minPrice);
+    if (maxPrice) filter.dailyPrice.$lte = Number(maxPrice);
+  }
 
-  const carsWithBookmark = await Promise.all(
-    cars.map(async (car: any) => {
-      const isBookmarked = await FavouriteCar.exists({
-        userId,
-        referenceId: car._id,
+  // dynamic enum and text filters
+  if (transmission) filter.transmission = transmission;
+  if (fuelType) filter.fuelType = fuelType;
+  if (color) filter.color = { $regex: color, $options: "i" };
+  if (city) filter.city = { $regex: city, $options: "i" };
+
+  // ---------- create pipeline ----------
+  let pipeline: any[] = [];
+
+  // if location exists, GeoNear must be first
+  if (latitude && longitude) {
+    pipeline.push({
+      $geoNear: {
+        near: { type: "Point", coordinates: [Number(longitude), Number(latitude)] },
+        distanceField: "distance",
+        maxDistance: maxDistance ? Number(maxDistance) * 1000 : 50000,
+        spherical: true,
+        query: filter
+      }
+    });
+  } else {
+    // if do not have geo filter, match stage comes first
+    pipeline.push({ $match: filter });
+  }
+
+  // sorting
+  let sortObj: any = { createdAt: -1 };
+  if (sort === "priceLowToHigh") sortObj = { dailyPrice: 1 };
+  if (sort === "priceHighToLow") sortObj = { dailyPrice: -1 };
+  if (sort === "distance" && latitude) sortObj = { distance: 1 };
+
+  pipeline.push({ $sort: sortObj });
+
+  // Pagination
+  const skip = (Number(page) - 1) * Number(limit);
+  pipeline.push({ $skip: skip }, { $limit: Number(limit) });
+
+  // fetch data
+  const cars = await Car.aggregate(pipeline);
+
+  // ---------- Availability & Reviews ----------
+  const targetDate = (date as string) || new Date().toISOString().split("T")[0];
+
+  const processedCars = await Promise.all(
+    cars.map(async (carData: any) => {
+      const car = await Car.findById(carData._id).populate({
+        path: "userId",
+        select: "firstName lastName fullName role profileImage email phone",
       });
 
-      const reviewSummary = await ReviewServices.getReviewSummaryFromDB(
-        car.id,
-        REVIEW_TYPE.CAR,
-      );
+      if (!car) return null;
+
+      // Availability check
+      const availability = await CarServices.getAvailability(car._id.toString(), targetDate);
+
+      const availabilityCalendar = await getCarCalendar(car._id.toString());
+
+      let isAvailable = !availability.isFullyBlocked;
+      if (time) {
+        const slot = availability.slots.find((s: any) => s.time === time);
+        isAvailable = slot ? slot.isAvailable : false;
+      }
+
+      // date or time filter
+      if ((date || time) && !isAvailable) return null;
+
+      // rating filter
+      const reviewSummary = await ReviewServices.getReviewSummaryFromDB(car._id.toString(), REVIEW_TYPE.CAR);
+      if (rating && reviewSummary.averageRating < Number(rating)) return null;
+
+      // other data
+      const tripsCountMap = await getCarTripCountMap([car._id]);
+      const isBookmarked = await FavouriteCar.exists({ userId, referenceId: car._id });
 
       return {
         ...car.toObject(),
+        distance: carData.distance ? (carData.distance / 1000).toFixed(1) : null,
+        isAvailable,
+        availabilityCalendar,
+        trips: tripsCountMap[car._id.toString()] || 0,
         isFavourite: Boolean(isBookmarked),
         averageRating: reviewSummary.averageRating,
         totalReviews: reviewSummary.totalReviews,
         starCounts: reviewSummary.starCounts,
         reviews: reviewSummary.reviews,
+        availabilitySlots: availability.slots
       };
-    }),
+    })
   );
 
-  const meta = await queryBuilder.countTotal();
-
-  if (!cars || cars.length === 0) {
-    throw new ApiError(404, "No cars are found in the database");
-  }
+  // filter out nulls
+  const finalCars = processedCars.filter(car => car !== null);
 
   return {
-    data: carsWithBookmark,
-    meta,
+    data: finalCars,
+    meta: {
+      page: Number(page),
+      limit: Number(limit),
+      total: finalCars.length,
+    },
   };
 };
 
@@ -223,10 +387,17 @@ const getCarByIdFromDB = async (id: string, userId: string) => {
     referenceId: id,
   });
 
+  const now = new Date();
+  const isAvailable = await checkCarAvailabilityByDate(result, now);
+
+  const availabilityCalendar = await getCarCalendar(id.toString());
+
   const reviewSummary = await ReviewServices.getReviewSummaryFromDB(
     id,
     REVIEW_TYPE.CAR,
   );
+
+  const trips = await getCarTripCount(id)
 
   if (!result) {
     return {};
@@ -234,6 +405,9 @@ const getCarByIdFromDB = async (id: string, userId: string) => {
 
   return {
     ...result.toObject(),
+    trips: trips || 0,
+    isAvailable,
+    availabilityCalendar,
     isFavourite: Boolean(isBookmarked),
     averageRating: reviewSummary.averageRating,
     totalReviews: reviewSummary.totalReviews,
@@ -252,15 +426,25 @@ enum ACTION {
   DELETE = "DELETE",
 }
 
-interface IArrayAction {
-  field: string; // e.g. "facilities"
-  action: ACTION; // add/remove
-  value: string; // single item
+export type ArrayActionValue =
+  | string
+  | {
+    label: string;
+    value: string;
+  };
+
+export interface IArrayAction {
+  field: "images" | "availableDays" | "facilities";
+  action: ACTION;
+  value: ArrayActionValue;
 }
 
-/*
-200 golpo dorkar 1 year
-*/
+type FacilityPayload = {
+  label: string;
+  value: string;
+  icon?: string;
+};
+
 
 const updateCarByIdToDB = async (
   userId: string,
@@ -284,16 +468,60 @@ const updateCarByIdToDB = async (
   if (payload.arrayAction) {
     const { field, action, value } = payload.arrayAction;
 
-    if (!["facilities", "images", "availableDays"].includes(field)) {
+    const allowedFields = ["images", "availableDays", "facilities"];
+
+    if (!allowedFields.includes(field)) {
       throw new ApiError(400, "Invalid array field");
     }
 
-    if (action === ACTION.ADD) {
-      updateQuery = { $addToSet: { [field]: value } };
-    }
+    // -------------------------- Build update query --------------------------
+    if (field === "facilities") {
+      const isFacilityPayload = (val: ArrayActionValue): val is FacilityPayload => {
+        return (
+          typeof val === "object" &&
+          val !== null &&
+          "label" in val &&
+          "value" in val
+        );
+      };
 
-    if (action === ACTION.DELETE) {
-      updateQuery = { $pull: { [field]: value } };
+
+      if (action === ACTION.ADD) {
+        if (!isFacilityPayload(value)) {
+          throw new ApiError(400, "Invalid facility payload");
+        }
+
+        updateQuery = {
+          $addToSet: {
+            facilities: {
+              label: value.label,
+              value: value.value.toLowerCase(),
+              icon: value.icon,
+            },
+          },
+        };
+      }
+
+      if (action === ACTION.DELETE) {
+        if (typeof value !== "string") {
+          throw new ApiError(400, "Facility value must be string");
+        }
+
+        updateQuery = {
+          $pull: {
+            facilities: { value },
+          },
+        };
+      }
+    }
+    else {
+      if (action === ACTION.ADD) {
+        updateQuery = { $addToSet: { [field]: value } };
+      }
+
+      if (action === ACTION.DELETE) {
+        updateQuery = { $pull: { [field]: value } };
+      }
     }
 
     delete payload.arrayAction;
@@ -304,11 +532,15 @@ const updateCarByIdToDB = async (
       { new: true },
     );
 
+    if (!updated) {
+      throw new ApiError(404, "Car not found or not owned by user");
+    }
+
     return updated;
   }
+
   // -------------------------- Handle normal updates --------------------------
   const cleanPayload = removeUndefined(payload);
-
   delete (cleanPayload as any).userId;
 
   const updated = await Car.findOneAndUpdate(
@@ -317,8 +549,13 @@ const updateCarByIdToDB = async (
     { new: true },
   );
 
+  if (!updated) {
+    throw new ApiError(404, "Car not found or not owned by user");
+  }
+
   return updated;
 };
+
 
 const deleteCarByIdFromDB = async (userId: string, id: string) => {
   // -------------------------- Check host --------------------------
@@ -533,7 +770,7 @@ const getAvailability = async (carId: string, dateString: string) => {
       time: `${String(hour).padStart(2, "0")}:00`,
       isAvailable: true,
       blocked: false,
-      blockedReason: null,
+      blockedReason: "",
     };
   });
 
@@ -541,7 +778,7 @@ const getAvailability = async (carId: string, dateString: string) => {
     carId,
     date: normalizedDate.toISOString().split("T")[0],
     isFullyBlocked: false,
-    blockedReason: null,
+    blockedReason: "",
     slots,
   };
 };
@@ -653,109 +890,6 @@ const createCarBlockedDatesToDB = async (
   return result;
 };
 
-// const getSuggestedCarsFromDB = async (userId: string, limit: number = 10) => {
-//   const user = await User.findById(userId).select("location").lean();
-
-//   let userLocation: [number, number] | undefined;
-//   if (
-//     user?.location?.coordinates &&
-//     Array.isArray(user.location.coordinates) &&
-//     user.location.coordinates.length === 2
-//   ) {
-//     const [lng, lat] = user.location.coordinates;
-//     if (lng !== 0 && lat !== 0) {
-//       userLocation = [lng, lat];
-//     }
-//   }
-
-//   const defaultLocation: [number, number] = [90.4074, 23.8103];
-//   const location = userLocation || defaultLocation;
-
-//   const maxDistance = 50000; // 50 km
-
-//   const cars = await Car.aggregate([
-//     {
-//       $geoNear: {
-//         near: { type: "Point", coordinates: location },
-//         distanceField: "distance",
-//         maxDistance,
-//         spherical: true,
-//         query: {
-//           isActive: true,
-//           verificationStatus: CAR_VERIFICATION_STATUS.APPROVED,
-//         },
-//       },
-//     },
-//     {
-//       $addFields: {
-//         distanceInKm: { $round: [{ $divide: ["$distance", 1000] }, 1] },
-//         ratingScore: {
-//           $cond: [
-//             { $gt: ["$totalReviews", 0] },
-//             { $divide: ["$averageRating", 5] },
-//             0.6,
-//           ],
-//         },
-//         proximityScore: {
-//           $divide: [1, { $add: [1, { $divide: ["$distance", 10000] }] }],
-//         },
-//       },
-//     },
-//     {
-//       $addFields: {
-//         recommendationScore: {
-//           $add: [
-//             { $multiply: ["$ratingScore", 0.6] },
-//             { $multiply: ["$proximityScore", 0.4] },
-//           ],
-//         },
-//       },
-//     },
-//     { $sort: { recommendationScore: -1 } },
-//     { $limit: limit + 5 },
-
-//     // Populate userId
-//     {
-//       $lookup: {
-//         from: "users",
-//         localField: "userId",
-//         foreignField: "_id",
-//         as: "userInfo",
-//       },
-//     },
-//     { $unwind: "$userInfo" },
-
-//     // replace userId with only firstName and lastName
-//     {
-//       $addFields: {
-//         userId: {
-//           _id: "$userInfo._id",
-//           firstName: "$userInfo.firstName",
-//           lastName: "$userInfo.lastName",
-//           email: "$userInfo.email",
-//           phone: "$userInfo.phone",
-//           role: "$userInfo.role",
-//           profileImage: "$userInfo.profileImage",
-//         },
-//       },
-//     },
-
-//     // remove temporary fields
-//     {
-//       $project: {
-//         distance: 0,
-//         userInfo: 0,
-//         ratingScore: 0,
-//         proximityScore: 0,
-//         recommendationScore: 0,
-//       },
-//     },
-
-//     { $limit: limit },
-//   ]);
-
-//   return cars;
-// };
 
 const getSuggestedCarsFromDB = async (userId: string, limit: number = 10) => {
   console.log("===== START getSuggestedCarsFromDB =====");
@@ -812,11 +946,28 @@ const getSuggestedCarsFromDB = async (userId: string, limit: number = 10) => {
 
   for (const car of rawCars) {
     console.log("Checking car:", car._id);
-    const isBookable = await isCarBookableForDay(car, targetDate);
-    console.log(`Car ${car._id} bookable?`, isBookable);
 
-    if (isBookable) {
-      suggestedCars.push(car);
+    // ================OLD CODE===================
+    //   const isBookable = await isCarBookableForDay(car, targetDate);
+    //   console.log(`Car ${car._id} bookable?`, isBookable);
+
+    //   if (isBookable) {
+    //     suggestedCars.push(car);
+    //   }
+    //   if (suggestedCars.length === limit) break;
+    // }
+
+    // ================NEW CODE===================
+    const isAvailable = await checkCarAvailabilityByDate(car, targetDate);
+
+    const availabilityCalendar = await getCarCalendar(car._id.toString());
+
+    if (isAvailable) {
+      suggestedCars.push({
+        ...car,
+        isAvailable: true,
+        availabilityCalendar,
+      });
     }
     if (suggestedCars.length === limit) break;
   }
@@ -831,6 +982,9 @@ const getSuggestedCarsFromDB = async (userId: string, limit: number = 10) => {
 
   // ---------- STEP 5: Add trip count ----------
   const carIds = populatedCars.map((car: any) => car._id);
+
+  console.log("Car IDs for trip count:", carIds);
+
   const tripCountMap = await getCarTripCountMap(carIds);
 
   const finalCars = await Promise.all(

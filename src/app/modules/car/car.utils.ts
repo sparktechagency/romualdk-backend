@@ -1,6 +1,7 @@
 import { Types } from "mongoose";
 import { Booking } from "../booking/booking.model";
 import { CAR_STATUS } from "../booking/booking.interface";
+import { CarServices } from "./car.service";
 
 export const getCarTripCount = async (
     carId: Types.ObjectId | string
@@ -40,4 +41,63 @@ export const getCarTripCountMap = async (
     }
 
     return map;
+};
+
+
+// car.utils.ts
+export const checkCarAvailabilityByDate = async (car: any, targetDate: Date) => {
+
+
+
+    if (!car.isActive) return false;
+
+
+    const dayName = targetDate
+        .toLocaleDateString("en-US", { weekday: "long" })
+        .toUpperCase();
+    if (car.availableDays?.length && !car.availableDays.includes(dayName)) {
+        return false;
+    }
+
+
+    const dateString = targetDate.toISOString().split("T")[0];
+    const isBlocked = car.blockedDates?.some(
+        (b: any) => new Date(b.date).toISOString().split("T")[0] === dateString
+    );
+    if (isBlocked) return false;
+
+
+    const bookingConflict = await Booking.findOne({
+        carId: car._id,
+        status: { $in: ["PAID", "ONGOING"] },
+        fromDate: { $lte: targetDate },
+        toDate: { $gte: targetDate },
+    });
+
+    return !bookingConflict;
+};
+
+export const getCarCalendar = async (carId: string) => {
+    const calendar = [];
+    const today = new Date();
+
+    for (let i = 0; i < 30; i++) {
+        const targetDate = new Date(today);
+        targetDate.setDate(today.getDate() + i);
+        const dateString = targetDate.toISOString().split("T")[0];
+
+        // if any slot is available for that date
+        const availability = await CarServices.getAvailability(carId, dateString);
+
+
+        // if at least `1` slot is available
+        const isAnySlotAvailable = availability.slots.some(slot => slot.isAvailable === true);
+
+        calendar.push({
+            date: dateString,
+            available: isAnySlotAvailable,
+            reason: availability.blockedReason || (isAnySlotAvailable ? "" : "Fully Booked"),
+        });
+    }
+    return calendar;
 };

@@ -33,6 +33,11 @@ export interface IBlockedDate {
   reason?: string;
 }
 
+export interface ICarFacility {
+  label: string;   // Display name from dashboard (e.g. "Bluetooth")
+  value: string;   // Unique key (e.g. "bluetooth", "gps", "air_condition") 
+}
+
 export interface ICar {
   userId: Types.ObjectId;
   brand: string;
@@ -40,10 +45,7 @@ export interface ICar {
   year: number;
   transmission: TRANSMISSION;
   fuelType: FUEL_TYPE;
-  airConditioning: boolean;
-  gpsNavigation: boolean;
   mileage: string;
-  bluetooth: boolean;
   seatNumber: number;
   color: string;
   about: string;
@@ -58,12 +60,15 @@ export interface ICar {
   minimumTripDuration: number; // in hours
   withDriver: boolean;
   city: string;
-  pickupPoint: { type: "Point"; coordinates: [number, number] };
+  pickupPoint: { type: "Point"; coordinates: [number, number], address: string }; // GeoJSON Point
   availableDays: AVAILABLE_DAYS[];
+  facilities: ICarFacility[];
   availableHours: string[];
-  facilities: string[];
   blockedDates?: IBlockedDate[];
   defaultStartTime?: string; // e.g., "09:00"
   defaultEndTime?: string; // e.g., "21:00"
   isActive: boolean;
+  isAvailable?: boolean; // virtual field
 }
+
+

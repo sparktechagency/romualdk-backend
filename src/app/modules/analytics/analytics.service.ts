@@ -76,7 +76,6 @@ const getGuestHostYearlyChart = async (year?: number) => {
         total: { $sum: 1 },
       },
     },
-
     {
       $group: {
         _id: "$_id.month",

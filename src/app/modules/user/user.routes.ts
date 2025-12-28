@@ -24,7 +24,7 @@ const requireAnyUser = auth(
 router
   .route("/profile")
   .get(requireAnyUser, UserController.getUserProfile)
-  .delete(auth(USER_ROLES.USER, USER_ROLES.HOST), UserController.deleteProfile);
+  .delete(auth(USER_ROLES.USER, USER_ROLES.HOST, USER_ROLES.ADMIN), UserController.deleteProfile);
 
 /* ---------------------------- ADMIN CREATE ------------------------------ */
 router.post(
@@ -36,6 +36,7 @@ router.post(
 /* ---------------------------- HOST LIST & DETAILS ----------------------- */
 router.get("/host", requireAdminOrSuperAdmin, UserController.getAllHosts);
 router.get("/host/:id", requireAdminOrSuperAdmin, UserController.getHostById);
+router.get("/host-details/:id", requireAdminOrSuperAdmin, UserController.getHostDetailsById);
 
 /* ---------------------------- ADMINS LIST ------------------------------- */
 router.get("/admins", requireSuperAdmin, UserController.getAdmin);
@@ -103,6 +104,11 @@ router.patch(
   "/host/status/:id",
   requireAdminOrSuperAdmin,
   UserController.updateHostStatusById,
+);
+router.patch(
+  "/admin/status/:id",
+  requireAdminOrSuperAdmin,
+  UserController.updateAdminStatusById,
 );
 router.patch(
   "/status/:id",

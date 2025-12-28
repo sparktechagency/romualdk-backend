@@ -56,22 +56,22 @@ const CarSchema = new Schema<ICar>(
       enum: Object.values(CAR_VERIFICATION_STATUS),
       default: CAR_VERIFICATION_STATUS.PENDING,
     },
-    airConditioning: {
-      type: Boolean,
-      required: true,
-    },
-    gpsNavigation: {
-      type: Boolean,
-      required: true,
-    },
+    // airConditioning: {
+    //   type: Boolean,
+    //   required: true,
+    // },
+    // gpsNavigation: {
+    //   type: Boolean,
+    //   required: true,
+    // },
     mileage: {
       type: String,
       required: true,
     },
-    bluetooth: {
-      type: Boolean,
-      required: true,
-    },
+    // bluetooth: {
+    //   type: Boolean,
+    //   required: true,
+    // },
     seatNumber: {
       type: Number,
       required: true,
@@ -150,6 +150,10 @@ const CarSchema = new Schema<ICar>(
         type: [Number],
         required: true,
       }, // [lng, lat]
+      address: {
+        type: String,
+        default: "",
+      },
     },
     availableDays: [
       {
@@ -158,18 +162,24 @@ const CarSchema = new Schema<ICar>(
         required: true,
       },
     ],
+    facilities: [
+      {
+        label: { type: String, required: true },  // Display name from dashboard (e.g. "Bluetooth")
+        value: { type: String, required: true },  // Unique key (e.g. "bluetooth", "gps", "air_condition") 
+      },
+    ],
     availableHours: [
       {
         type: String,
         required: false,
       },
     ],
-    facilities: [
-      {
-        type: String,
-        required: false,
-      },
-    ],
+    // facilities: [
+    //   {
+    //     type: String,
+    //     required: false,
+    //   },
+    // ],
     defaultStartTime: {
       type: String,
       enum: [

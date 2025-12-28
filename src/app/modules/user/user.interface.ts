@@ -23,8 +23,7 @@ export type IUser = {
   location?: {
     type: "Point";
     coordinates: [number, number]; // [longitude, latitude],
-    city: string;
-    country: string;
+    address: string;
   };
 
   // stripe ....

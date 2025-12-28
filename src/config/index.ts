@@ -40,6 +40,11 @@ export default {
     email: process.env.ADMIN_EMAIL,
     password: process.env.ADMIN_PASSWORD,
   },
+  afrikSms: {
+    clientId: process.env.AFRIKSMS_CLIENT_ID,
+    apiKey: process.env.AFRIKSMS_API_KEY,
+    senderId: process.env.AFRIKSMS_SENDER_ID || "AFRIKSMS",
+  },
   twilio: {
     accountSid: process.env.TWILIO_ACCOUNT_SID,
     authToken: process.env.TWILIO_AUTH_TOKEN,
