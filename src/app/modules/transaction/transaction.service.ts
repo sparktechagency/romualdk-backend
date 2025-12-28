@@ -44,7 +44,7 @@ const getAllTransactions = async (query: GetTransactionsQuery) => {
   const qb = new QueryBuilder(baseQuery, query);
 
   qb
-    .search(["method", "status"])
+    .search(["method", "status", "stripePaymentIntentId", "payoutStatus"])
     .filter()
     .sort()
     .paginate()

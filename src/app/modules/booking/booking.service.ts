@@ -314,7 +314,10 @@ const getAllBookingsForAdmin = async (query: Record<string, any>) => {
 
   const qb = new QueryBuilder(baseQuery, query);
 
-  qb.search(["status", "carStatus", "_id", "checkIn", "checkOut", "isCancelled","type", "fromDate", "toDate"])
+  qb
+    // 🔍 ONLY string / enum fields
+    .search(["status", "carStatus", "type"])
+    //exact filters
     .filter()
     .sort()
     .paginate()
@@ -325,6 +328,7 @@ const getAllBookingsForAdmin = async (query: Record<string, any>) => {
 
   return { data, meta };
 };
+
 
 // ============Get booking by ID ============
 const getBookingById = async (bookingId: string) => {
