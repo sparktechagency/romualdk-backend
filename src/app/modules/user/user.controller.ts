@@ -280,6 +280,19 @@ const getHostById = catchAsync(async (req, res) => {
     message: "Successfully retrieve host by ID",
     data: result,
   });
+
+});
+const getHostDetailsById = catchAsync(async (req, res) => {
+  const { id } = req.params;
+  console.log(id, "ID");
+  const result = await UserService.getHostDetailsByIdFromDB(id);
+
+  sendResponse(res, {
+    success: true,
+    statusCode: 200,
+    message: "Successfully retrieve host details by ID",
+    data: result,
+  });
 });
 
 const updateHostStatusById = catchAsync(async (req, res) => {
@@ -319,4 +332,5 @@ export const UserController = {
   getAllHosts,
   getHostById,
   updateHostStatusById,
+  getHostDetailsById,
 };

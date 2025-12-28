@@ -144,12 +144,12 @@ const createUserToDB = async (payload: Partial<IUser>) => {
   };
 
   const createUser = await User.create(payload);
-  
+
   if (!createUser)
     throw new ApiError(StatusCodes.BAD_REQUEST, "Failed to create user");
 
   const smsMessage = `Your Emma verification code is ${otp}. Valid for 5 minutes.`;
-  
+
   try {
     await afrikSmsService.sendSMS(
       createUser.phone,
@@ -158,7 +158,7 @@ const createUserToDB = async (payload: Partial<IUser>) => {
     );
   } catch (error) {
     console.error("SMS Sending failed:", error);
-   
+
   }
 
   const createToken = jwtHelper.createToken(
@@ -732,6 +732,131 @@ const getHostByIdFromDB = async (id: string) => {
   return result[0];
 };
 
+
+const getHostDetailsByIdFromDB = async (id: string) => {
+  if (!Types.ObjectId.isValid(id)) {
+    throw new ApiError(400, "Invalid host ID");
+  }
+
+  const pipeline: PipelineStage[] = [
+    {
+      $match: {
+        _id: new Types.ObjectId(id),
+        hostStatus: HOST_STATUS.APPROVED,
+      },
+    },
+    /* Join Cars & Reviews */
+    {
+      $lookup: {
+        from: "cars",
+        localField: "_id",
+        foreignField: "userId",
+        as: "cars",
+      },
+    },
+    {
+      $lookup: {
+        from: "reviews",
+        let: { host_id: "$_id" },
+        pipeline: [
+          { $match: { $expr: { $eq: ["$hostId", "$$host_id"] } } },
+          { $sort: { createdAt: -1 } },
+          {
+            $lookup: {
+              from: "users",
+              localField: "fromUserId",
+              foreignField: "_id",
+              as: "fromUser"
+            }
+          },
+          { $unwind: "$fromUser" },
+          {
+            $project: {
+              reviewId: "$_id",
+              ratingValue: 1,
+              feedback: 1,
+              fromUser: {
+                _id: 1,
+                firstName: 1,
+                lastName: 1,
+                role: 1,
+                email: 1,
+                phone: 1,
+                profileImage: 1,
+              }
+            }
+          }
+        ],
+        as: "reviews",
+      },
+    },
+    /*  Calculation Stage (Filter & Stats) */
+    {
+      $addFields: {
+        cars: {
+          $filter: {
+            input: "$cars",
+            as: "car",
+            cond: {
+              $and: [
+                { $eq: ["$$car.verificationStatus", "APPROVED"] },
+                { $eq: ["$$car.isActive", true] },
+              ],
+            },
+          },
+        },
+        totalReviews: { $size: "$reviews" },
+        averageRating: {
+          $cond: [
+            { $gt: [{ $size: "$reviews" }, 0] },
+            { $round: [{ $avg: "$reviews.ratingValue" }, 1] },
+            0
+          ]
+        },
+        starCounts: {
+          "1": { $size: { $filter: { input: "$reviews", as: "r", cond: { $eq: ["$$r.ratingValue", 1] } } } },
+          "2": { $size: { $filter: { input: "$reviews", as: "r", cond: { $eq: ["$$r.ratingValue", 2] } } } },
+          "3": { $size: { $filter: { input: "$reviews", as: "r", cond: { $eq: ["$$r.ratingValue", 3] } } } },
+          "4": { $size: { $filter: { input: "$reviews", as: "r", cond: { $eq: ["$$r.ratingValue", 4] } } } },
+          "5": { $size: { $filter: { input: "$reviews", as: "r", cond: { $eq: ["$$r.ratingValue", 5] } } } },
+        }
+      },
+    },
+    /*  Get total count of filtered cars */
+    {
+      $addFields: {
+        totalCars: { $size: "$cars" }
+      }
+    },
+    //  strict projection
+    {
+      $project: {
+        _id: 1,
+        firstName: 1,
+        lastName: 1,
+        countryCode: 1,
+        phone: 1,
+        hostStatus: 1,
+        location: 1,
+        cars: 1,
+        totalCars: 1,
+        totalReviews: 1,
+        averageRating: 1,
+        starCounts: 1,
+        reviews: 1,
+      },
+    },
+  ];
+
+  const result = await User.aggregate(pipeline);
+
+  if (!result.length) {
+    throw new ApiError(404, "No host is found in the database by this ID");
+  }
+
+  return result[0];
+};
+
 const updateHostStatusByIdToDB = async (
   id: string,
   status: STATUS.ACTIVE | STATUS.INACTIVE,
@@ -778,4 +903,5 @@ export const UserService = {
   getAllHostsFromDB,
   getHostByIdFromDB,
   updateHostStatusByIdToDB,
+  getHostDetailsByIdFromDB,
 };

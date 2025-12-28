@@ -36,6 +36,7 @@ router.post(
 /* ---------------------------- HOST LIST & DETAILS ----------------------- */
 router.get("/host", requireAdminOrSuperAdmin, UserController.getAllHosts);
 router.get("/host/:id", requireAdminOrSuperAdmin, UserController.getHostById);
+router.get("/host-details/:id", requireAdminOrSuperAdmin, UserController.getHostDetailsById);
 
 /* ---------------------------- ADMINS LIST ------------------------------- */
 router.get("/admins", requireSuperAdmin, UserController.getAdmin);
