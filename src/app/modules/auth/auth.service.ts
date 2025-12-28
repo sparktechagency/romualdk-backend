@@ -12,6 +12,7 @@ import { ResetToken } from "../resetToken/resetToken.model";
 import { emailHelper } from "../../../helpers/emailHelper";
 import generateOTP from "../../../util/generateOTP";
 import { emailTemplate } from "../../../shared/emailTemplate";
+import { afrikSmsService } from "../../../helpers/afrikSms.service";
 
 //login
 // const loginUserFromDB = async (payload: ILoginData) => {
@@ -94,17 +95,93 @@ const loginUserFromDB = async (payload: ILoginData) => {
   };
 };
 
-//forget password - ADD countryCode parameter
-// const forgetPasswordToDB = async (phone: string, countryCode: string) => {
-//   const user = await User.findOne({ phone, countryCode });
-//   if (!user) throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
 
-//   // ✅ Pass countryCode to Twilio
-//   await twilioService.sendOTPWithVerify(phone, countryCode);
+// ==================twilio forget password system==========================
+// const forgetPasswordToDB = async (payload: any) => {
+//   const { email, phone, countryCode } = payload;
 
-//   return { message: "OTP sent to your phone" };
+//   if (!email && !phone) {
+//     throw new ApiError(StatusCodes.BAD_REQUEST, "Provide phone or email!");
+//   }
+
+//   let user;
+
+//   // ===============================
+//   //  1 ) PHONE FLOW (priority 1)
+//   // ===============================
+
+//   if (phone) {
+//     if (!countryCode) {
+//       throw new ApiError(
+//         StatusCodes.BAD_REQUEST,
+//         "countryCode is required for phone",
+//       );
+//     }
+
+//     user = await User.findOne({ phone, countryCode });
+
+//     if (!user) {
+//       throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
+//     }
+
+//     // generate OTP
+//     const otp = generateOTP();
+
+//     // Twilio send
+//     await twilioService.sendOTPWithVerify(phone, countryCode);
+
+//     // save OTP
+//     const authentication = {
+//       oneTimeCode: otp,
+//       expireAt: new Date(Date.now() + 3 * 60 * 1000), // 3 minutes
+//     };
+
+//     await User.findOneAndUpdate(
+//       { phone, countryCode },
+//       { $set: { authentication } },
+//     );
+
+//     return { via: "phone", phone, countryCode };
+//   }
+
+//   // ===============================
+//   //  2 ) EMAIL FLOW (priority 2)
+//   // ===============================
+
+//   if (email) {
+//     const userByEmail = await User.isExistUserByEmail(email);
+
+//     if (!userByEmail) {
+//       throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
+//     }
+
+//     // generate OTP
+//     const otp = generateOTP();
+
+//     // template
+//     const value = { otp, email: userByEmail.email };
+//     const forgetPassword = emailTemplate.resetPassword(value);
+
+//     // send mail
+//     emailHelper.sendEmail(forgetPassword);
+
+//     // save in DB
+//     const authentication = {
+//       oneTimeCode: otp,
+//       expireAt: new Date(Date.now() + 3 * 60 * 1000),
+//     };
+
+//     await User.findOneAndUpdate(
+//       { email },
+//       { $set: { authentication } },
+//       { new: true },
+//     );
+
+//     return { via: "email", email };
+//   }
 // };
 
+// ========================== afkrksms forget password system===========================
 const forgetPasswordToDB = async (payload: any) => {
   const { email, phone, countryCode } = payload;
 
@@ -112,12 +189,9 @@ const forgetPasswordToDB = async (payload: any) => {
     throw new ApiError(StatusCodes.BAD_REQUEST, "Provide phone or email!");
   }
 
-  let user;
-
   // ===============================
   //  1 ) PHONE FLOW (priority 1)
   // ===============================
-
   if (phone) {
     if (!countryCode) {
       throw new ApiError(
@@ -126,22 +200,28 @@ const forgetPasswordToDB = async (payload: any) => {
       );
     }
 
-    user = await User.findOne({ phone, countryCode });
+    const user = await User.findOne({ phone, countryCode });
 
     if (!user) {
       throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
     }
 
-    // generate OTP
-    const otp = generateOTP();
+  //  generate OTP
+    const otp = afrikSmsService.generateOTP();
 
-    // Twilio send
-    await twilioService.sendOTPWithVerify(phone, countryCode);
+    const smsMessage = `Your password reset code is ${otp}. Valid for 5 minutes.`;
+    
+    try {
+      await afrikSmsService.sendSMS(phone, countryCode, smsMessage);
+    } catch (error) {
+      throw new ApiError(StatusCodes.EXPECTATION_FAILED, "Failed to send reset code to phone.");
+    }
 
-    // save OTP
+    
     const authentication = {
       oneTimeCode: otp,
-      expireAt: new Date(Date.now() + 3 * 60 * 1000), // 3 minutes
+      expireAt: new Date(Date.now() + 5 * 60 * 1000), // 5 minutes
+      isResetPassword: false,
     };
 
     await User.findOneAndUpdate(
@@ -155,7 +235,6 @@ const forgetPasswordToDB = async (payload: any) => {
   // ===============================
   //  2 ) EMAIL FLOW (priority 2)
   // ===============================
-
   if (email) {
     const userByEmail = await User.isExistUserByEmail(email);
 
@@ -163,20 +242,21 @@ const forgetPasswordToDB = async (payload: any) => {
       throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
     }
 
-    // generate OTP
-    const otp = generateOTP();
+    // otp generate
+    const otp = afrikSmsService.generateOTP();
 
-    // template
+    //  Email Template logic
     const value = { otp, email: userByEmail.email };
-    const forgetPassword = emailTemplate.resetPassword(value);
+    const forgetPasswordTemplate = emailTemplate.resetPassword(value);
 
-    // send mail
-    emailHelper.sendEmail(forgetPassword);
+    // Email helper call
+    emailHelper.sendEmail(forgetPasswordTemplate);
 
     // save in DB
     const authentication = {
       oneTimeCode: otp,
-      expireAt: new Date(Date.now() + 3 * 60 * 1000),
+      expireAt: new Date(Date.now() + 5 * 60 * 1000), // 5 minutes
+      isResetPassword: false,
     };
 
     await User.findOneAndUpdate(
@@ -190,7 +270,7 @@ const forgetPasswordToDB = async (payload: any) => {
 };
 
 
-// twilio verify phone OTP - ADD countryCode parameter
+//================== twilio verify phone OTP - ADD countryCode parameter===========================
 // const verifyPhoneToDB = async (payload: {
 //   phone: string;
 //   code: string;
@@ -263,6 +343,7 @@ const forgetPasswordToDB = async (payload: any) => {
 
 //reset password - ADD countryCode parameter
 
+// ======================================= afriksms verify phone otp============================
 const verifyPhoneToDB = async (payload: {
   phone: string;
   code: string; 
@@ -342,13 +423,74 @@ const verifyPhoneToDB = async (payload: {
 };
 
 
+// const resetPasswordToDB = async (
+//   token: string,
+//   payload: { newPassword: string; confirmPassword: string },
+// ) => {
+//   const { newPassword, confirmPassword } = payload;
+
+//   // check matching
+//   if (newPassword !== confirmPassword) {
+//     throw new ApiError(
+//       StatusCodes.BAD_REQUEST,
+//       "New password and Confirm password doesn't match!",
+//     );
+//   }
+
+//   // token exist?
+//   const isExistToken = await ResetToken.isExistToken(token);
+//   if (!isExistToken) {
+//     throw new ApiError(StatusCodes.UNAUTHORIZED, "You are not authorized");
+//   }
+
+//   // user permission
+//   const isExistUser = await User.findById(isExistToken.user).select(
+//     "+authentication",
+//   );
+
+//   if (!isExistUser?.authentication?.isResetPassword) {
+//     throw new ApiError(
+//       StatusCodes.UNAUTHORIZED,
+//       "You don't have permission to change the password. Please try 'Forgot Password' again.",
+//     );
+//   }
+
+//   // token validity
+//   const isValid = await ResetToken.isExpireToken(token);
+//   if (!isValid) {
+//     throw new ApiError(
+//       StatusCodes.BAD_REQUEST,
+//       "Token expired, please try again.",
+//     );
+//   }
+
+//   // hash password
+//   const hashPassword = await bcrypt.hash(
+//     newPassword,
+//     Number(config.bcrypt_salt_rounds),
+//   );
+
+//   const updateData = {
+//     password: hashPassword,
+//     authentication: { isResetPassword: false },
+//   };
+
+//   const result = await User.findOneAndUpdate(
+//     { _id: isExistToken.user },
+//     updateData,
+//     { new: true },
+//   );
+
+//   return result;
+// };
+
 const resetPasswordToDB = async (
   token: string,
   payload: { newPassword: string; confirmPassword: string },
 ) => {
   const { newPassword, confirmPassword } = payload;
 
-  // check matching
+  //  Password matching check
   if (newPassword !== confirmPassword) {
     throw new ApiError(
       StatusCodes.BAD_REQUEST,
@@ -356,17 +498,18 @@ const resetPasswordToDB = async (
     );
   }
 
-  // token exist?
-  const isExistToken = await ResetToken.isExistToken(token);
+  // Token exist check
+  const isExistToken = await ResetToken.findOne({ token });
   if (!isExistToken) {
     throw new ApiError(StatusCodes.UNAUTHORIZED, "You are not authorized");
   }
 
-  // user permission
+  // User permission check
   const isExistUser = await User.findById(isExistToken.user).select(
     "+authentication",
   );
 
+ 
   if (!isExistUser?.authentication?.isResetPassword) {
     throw new ApiError(
       StatusCodes.UNAUTHORIZED,
@@ -374,31 +517,38 @@ const resetPasswordToDB = async (
     );
   }
 
-  // token validity
-  const isValid = await ResetToken.isExpireToken(token);
-  if (!isValid) {
+  // Token validity check
+  const now = new Date();
+  if (new Date(isExistToken.expireAt) < now) {
     throw new ApiError(
       StatusCodes.BAD_REQUEST,
       "Token expired, please try again.",
     );
   }
 
-  // hash password
+  // Hash password
   const hashPassword = await bcrypt.hash(
     newPassword,
     Number(config.bcrypt_salt_rounds),
   );
 
-  const updateData = {
-    password: hashPassword,
-    authentication: { isResetPassword: false },
-  };
-
+  // Database Update
+  // Atomic update using $set to prevent overwriting the whole authentication object
   const result = await User.findOneAndUpdate(
     { _id: isExistToken.user },
-    updateData,
+    {
+      $set: {
+        password: hashPassword,
+        "authentication.isResetPassword": false,
+        "authentication.oneTimeCode": null,
+        "authentication.expireAt": null,
+      },
+    },
     { new: true },
   );
+
+  // Delete used token
+  await ResetToken.deleteOne({ token });
 
   return result;
 };
@@ -480,24 +630,72 @@ const newAccessTokenToUser = async (token: string) => {
   return result;
 };
 
-// resend OTP - ADD countryCode parameter
+// ===================resend otp phone twillio=======================
+// const resendPhoneOTPToDB = async (phone: string, countryCode: string) => {
+//   const user = await User.findOne({ phone, countryCode });
+//   if (!user) {
+//     throw new ApiError(StatusCodes.NOT_FOUND, "User doesn't exist!");
+//   }
+
+//   if (user.verified) {
+//     throw new ApiError(StatusCodes.BAD_REQUEST, "User already verified!");
+//   }
+
+//   // Pass countryCode to Twilio
+//   const result = await twilioService.sendOTPWithVerify(phone, countryCode);
+
+//   return result;
+// };
+
+// delete user
+
+// ==================resend otp phone afriksms=======================
 const resendPhoneOTPToDB = async (phone: string, countryCode: string) => {
+  //  User check
   const user = await User.findOne({ phone, countryCode });
   if (!user) {
     throw new ApiError(StatusCodes.NOT_FOUND, "User doesn't exist!");
   }
 
+  //  check if already verified
   if (user.verified) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "User already verified!");
   }
 
-  // Pass countryCode to Twilio
-  const result = await twilioService.sendOTPWithVerify(phone, countryCode);
+  // new OTP generate
+  const otp = afrikSmsService.generateOTP();
 
-  return result;
+  // 
+  const smsMessage = `Your verification code is ${otp}. Valid for 5 minutes.`;
+  
+  try {
+    await afrikSmsService.sendSMS(phone, countryCode, smsMessage);
+  } catch (error: any) {
+    throw new ApiError(
+      StatusCodes.EXPECTATION_FAILED, 
+      `Failed to resend OTP: ${error.message}`
+    );
+  }
+
+  const authentication = {
+    oneTimeCode: otp,
+    expireAt: new Date(Date.now() + 5 * 60 * 1000), // 5 minutes
+    isResetPassword: false,
+  };
+
+  const result = await User.findOneAndUpdate(
+    { phone, countryCode },
+    { $set: { authentication } },
+    { new: true }
+  );
+
+  return {
+    phone: result?.phone,
+    countryCode: result?.countryCode,
+    message: "A new OTP has been sent to your phone."
+  };
 };
 
-// delete user
 const deleteUserFromDB = async (user: JwtPayload, password: string) => {
   const isExistUser = await User.findById(user.id).select("+password");
   if (!isExistUser) {
