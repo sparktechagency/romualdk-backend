@@ -208,6 +208,7 @@ const checkOut = async (bookingId: string) => {
   ) {
     booking.carStatus = CAR_STATUS.COMPLETED;
   }
+  booking.checkedOutAt = new Date();
   return booking.save();
 };
 
@@ -288,6 +289,7 @@ const isCancelled = async (bookingId: string) => {
     booking.isCancelled = true;
     booking.status = BOOKING_STATUS.CANCELLED;
     booking.carStatus = CAR_STATUS.CANCELLED;
+    booking.cancelledAt = new Date();
 
     await booking.save({ session });
 
@@ -384,42 +386,77 @@ const getBookingStatusStats = async (year?: number) => {
   const start = new Date(targetYear, 0, 1);        // January 1, targetYear
   const end = new Date(targetYear + 1, 0, 1);      // January 1, next year
 
-  const stats = await Booking.aggregate([
-    {
-      $match: {
-        fromDate: { $gte: start, $lt: end },
-      },
-    },
-    {
-      $addFields: {
-        chartStatus: {
-          $switch: {
-            branches: [
-              { case: { $eq: ["$carStatus", CAR_STATUS.COMPLETED] }, then: "Completed" },
-              { case: { $eq: ["$carStatus", CAR_STATUS.ONGOING] },    then: "Active" },
-              { case: { $eq: ["$carStatus", CAR_STATUS.CANCELLED] }, then: "Cancelled" },
-              {
-                case: {
-                  $and: [
-                    { $eq: ["$status", BOOKING_STATUS.PAID] },
-                    { $eq: ["$checkIn", false] },
-                  ],
-                },
-                then: "Upcoming",
+ const stats = await Booking.aggregate([
+  {
+    $addFields: {
+      analyticsDate: {
+        $switch: {
+          branches: [
+            // Cancelled → cancelledAt
+            {
+              case: { $eq: ["$carStatus", CAR_STATUS.CANCELLED] },
+              then: "$cancelledAt",
+            },
+
+            // Completed → checkOut / toDate
+            {
+              case: { $eq: ["$carStatus", CAR_STATUS.COMPLETED] },
+              then: "$checkedOutAt",
+            },
+
+            // Upcoming / Active → fromDate
+            {
+              case: {
+                $in: ["$carStatus", [CAR_STATUS.UPCOMING, CAR_STATUS.ONGOING]],
               },
-            ],
-            default: "Other",
-          },
+              then: "$fromDate",
+            },
+          ],
+          default: "$fromDate",
         },
       },
     },
-    {
-      $group: {
-        _id: "$chartStatus",
-        count: { $sum: 1 },
+  },
+
+  // Now filter by correct analytics date
+  {
+    $match: {
+      analyticsDate: { $gte: start, $lt: end },
+    },
+  },
+
+  {
+    $addFields: {
+      chartStatus: {
+        $switch: {
+          branches: [
+            { case: { $eq: ["$carStatus", CAR_STATUS.COMPLETED] }, then: "Completed" },
+            { case: { $eq: ["$carStatus", CAR_STATUS.ONGOING] }, then: "Active" },
+            { case: { $eq: ["$carStatus", CAR_STATUS.CANCELLED] }, then: "Cancelled" },
+            {
+              case: {
+                $and: [
+                  { $eq: ["$status", BOOKING_STATUS.PAID] },
+                  { $eq: ["$checkIn", false] },
+                ],
+              },
+              then: "Upcoming",
+            },
+          ],
+          default: "Other",
+        },
       },
     },
-  ]);
+  },
+
+  {
+    $group: {
+      _id: "$chartStatus",
+      count: { $sum: 1 },
+    },
+  },
+]);
+
 
   const total = stats.reduce((sum, item) => sum + item.count, 0) || 1; // avoid divide by zero
 

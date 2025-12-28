@@ -13,16 +13,38 @@ interface GetTransactionsQuery {
   status?: string;
 }
 
-const getAllTransactions = async (query: GetTransactionsQuery) => {
-  const baseQuery = Transaction.find().populate("bookingId").populate({
-    path: "bookingId",
-    populate: { path: "carId userId hostId" },
-  });
+// const getAllTransactions = async (query: GetTransactionsQuery) => {
+//   const baseQuery = Transaction.find().populate("bookingId").populate({
+//     path: "bookingId",
+//     populate: { path: "carId userId hostId" },
+//   });
 
-    ;
+//     ;
+//   const qb = new QueryBuilder(baseQuery, query);
+
+//   qb.search(["_id", "bookingId", "method", "status"])
+//     .filter()
+//     .sort()
+//     .paginate()
+//     .fields();
+
+//   const transactions = await qb.modelQuery;
+//   const meta = await qb.countTotal();
+
+//   return { transactions, meta };
+// };
+
+const getAllTransactions = async (query: GetTransactionsQuery) => {
+  const baseQuery = Transaction.find()
+    .populate({
+      path: "bookingId",
+      populate: { path: "carId userId hostId" },
+    });
+
   const qb = new QueryBuilder(baseQuery, query);
 
-  qb.search(["_id", "bookingId", "method", "status"])
+  qb
+    .search(["method", "status"])
     .filter()
     .sort()
     .paginate()
@@ -31,8 +53,13 @@ const getAllTransactions = async (query: GetTransactionsQuery) => {
   const transactions = await qb.modelQuery;
   const meta = await qb.countTotal();
 
-  return { transactions, meta };
+  return {
+    transactions,
+    meta,
+  };
 };
+
+
 
 const getTransactionById = async (id: string) => {
   if (!Types.ObjectId.isValid(id)) throw new Error("Invalid Transaction ID");

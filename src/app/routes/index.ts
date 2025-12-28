@@ -10,13 +10,12 @@ import { MessageRoutes } from "../modules/message/message.routes";
 import { CarRoutes } from "../modules/car/car.routes";
 import { MediaRoutes } from "../modules/media/media.route";
 import { SupportRoutes } from "../modules/support/support.route";
-
 import { AnalyticsRoutes } from "../modules/analytics/analytics.route";
-
 import { bookingRoutes } from "../modules/booking/booking.routes";
 import { paymentRoutes } from "../modules/payment/payment.routes";
 import { stripeCEARoutes } from "../modules/stripeCEA/stripeCEA.routes";
 import { transactionRoutes } from "../modules/transaction/transaction.routes";
+import { HostDashboardRoutes } from "../modules/hostDashboard/hostDashboard.route";
 
 const router = express.Router();
 
@@ -85,6 +84,10 @@ const apiRoutes = [
   {
     path: "/transactions",
     route: transactionRoutes
+  },
+  {
+    path: "/host-dashboard",
+    route: HostDashboardRoutes,
   }
 ];
 
