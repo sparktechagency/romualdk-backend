@@ -21,7 +21,49 @@ const createCar = catchAsync(async (req, res) => {
 const getAllCars = catchAsync(async (req, res) => {
   const { id: userId } = req.user;
 
-  const result = await CarServices.getAllCarsFromDB(req.query, userId);
+  const {
+    brand,
+    model,
+    transmission,
+    fuelType,
+    color,
+    city,
+    minPrice,
+    maxPrice,
+    rating,
+    latitude,
+    longitude,
+    maxDistance,
+    date,
+    time,
+    sort,
+    page,
+    limit,
+    searchTerm,
+  } = req.query;
+
+  const query = {
+    brand,
+    model,
+    transmission,
+    fuelType,
+    color,
+    city,
+    minPrice,
+    maxPrice,
+    rating,
+    latitude,
+    longitude,
+    maxDistance,
+    date,
+    time,
+    sort,
+    page,
+    limit,
+    searchTerm,
+  };
+
+  const result = await CarServices.getAllCarsFromDB(query, userId);
 
   sendResponse(res, {
     success: true,

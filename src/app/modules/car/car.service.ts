@@ -48,48 +48,188 @@ const createCarToDB = async (userId: string, payload: ICar) => {
 };
 
 // for feed
+// const getAllCarsFromDB = async (query: any, userId: string) => {
+//   const baseQuery = Car.find({
+//     verificationStatus: CAR_VERIFICATION_STATUS.APPROVED,
+//   }).populate({
+//     path: "userId",
+//     select: "firstName lastName fullName role profileImage email phone",
+//   });
+
+//   const queryBuilder = new QueryBuilder(baseQuery, query)
+//     .search(["brand", "model", "transmission", "color", "city", "licensePlate"])
+//     .sort()
+//     .fields()
+//     .filter()
+//     .paginate();
+
+//   const cars = await queryBuilder.modelQuery;
+
+//   const now = new Date();
+
+
+//   const carsWithBookmark = await Promise.all(
+//     cars.map(async (car: any) => {
+
+//       const tripsCountMap = await getCarTripCountMap([car._id]);
+
+//       const availabilityCalendar = await getCarCalendar(car._id.toString());
+
+//       const isBookmarked = await FavouriteCar.exists({
+//         userId,
+//         referenceId: car._id,
+//       });
+
+//       const reviewSummary = await ReviewServices.getReviewSummaryFromDB(
+//         car.id,
+//         REVIEW_TYPE.CAR,
+//       );
+
+//       const isAvailable = await checkCarAvailabilityByDate(car, now);
+
+
+//       return {
+//         ...car.toObject(),
+//         isAvailable,
+//         availabilityCalendar,
+//         trips: tripsCountMap[car._id.toString()] || 0,
+//         isFavourite: Boolean(isBookmarked),
+//         averageRating: reviewSummary.averageRating,
+//         totalReviews: reviewSummary.totalReviews,
+//         starCounts: reviewSummary.starCounts,
+//         reviews: reviewSummary.reviews,
+//       };
+//     }),
+//   );
+
+//   const meta = await queryBuilder.countTotal();
+
+//   if (!cars || cars.length === 0) {
+//     throw new ApiError(404, "No cars are found in the database");
+//   }
+
+//   return {
+//     data: carsWithBookmark,
+//     meta,
+//   };
+// };
+
 const getAllCarsFromDB = async (query: any, userId: string) => {
-  const baseQuery = Car.find({
+  const {
+    searchTerm,
+    minPrice, maxPrice,
+    transmission,
+    fuelType,
+    color,
+    city,
+    rating,
+    latitude, longitude, maxDistance,
+    date,
+    time,
+    sort,
+    page = 1,
+    limit = 10
+  } = query;
+
+  // ---------- create dynamic object ----------
+  const filter: any = {
     verificationStatus: CAR_VERIFICATION_STATUS.APPROVED,
-  }).populate({
-    path: "userId",
-    select: "firstName lastName fullName role profileImage email phone",
-  });
+    isActive: true
+  };
 
-  const queryBuilder = new QueryBuilder(baseQuery, query)
-    .search(["brand", "model", "transmission", "color", "city", "licensePlate"])
-    .sort()
-    .fields()
-    .filter()
-    .paginate();
+  // search logic
+  if (searchTerm) {
+    filter.$or = [
+      { brand: { $regex: searchTerm, $options: "i" } },
+      { model: { $regex: searchTerm, $options: "i" } },
+      { city: { $regex: searchTerm, $options: "i" } },
+    ];
+  }
 
-  const cars = await queryBuilder.modelQuery;
+  // Price Range (Combine logic)
+  if (minPrice || maxPrice) {
+    filter.dailyPrice = {};
+    if (minPrice) filter.dailyPrice.$gte = Number(minPrice);
+    if (maxPrice) filter.dailyPrice.$lte = Number(maxPrice);
+  }
 
-  const now = new Date();
+  // dynamic enum and text filters
+  if (transmission) filter.transmission = transmission;
+  if (fuelType) filter.fuelType = fuelType;
+  if (color) filter.color = { $regex: color, $options: "i" };
+  if (city) filter.city = { $regex: city, $options: "i" };
 
+  // ---------- create pipeline ----------
+  let pipeline: any[] = [];
 
-  const carsWithBookmark = await Promise.all(
-    cars.map(async (car: any) => {
+  // if location exists, GeoNear must be first
+  if (latitude && longitude) {
+    pipeline.push({
+      $geoNear: {
+        near: { type: "Point", coordinates: [Number(longitude), Number(latitude)] },
+        distanceField: "distance",
+        maxDistance: maxDistance ? Number(maxDistance) * 1000 : 50000,
+        spherical: true,
+        query: filter
+      }
+    });
+  } else {
+    // if do not have geo filter, match stage comes first
+    pipeline.push({ $match: filter });
+  }
 
-      const tripsCountMap = await getCarTripCountMap([car._id]);
+  // sorting
+  let sortObj: any = { createdAt: -1 };
+  if (sort === "priceLowToHigh") sortObj = { dailyPrice: 1 };
+  if (sort === "priceHighToLow") sortObj = { dailyPrice: -1 };
+  if (sort === "distance" && latitude) sortObj = { distance: 1 };
+
+  pipeline.push({ $sort: sortObj });
+
+  // Pagination
+  const skip = (Number(page) - 1) * Number(limit);
+  pipeline.push({ $skip: skip }, { $limit: Number(limit) });
+
+  // fetch data
+  const cars = await Car.aggregate(pipeline);
+
+  // ---------- Availability & Reviews ----------
+  const targetDate = (date as string) || new Date().toISOString().split("T")[0];
+
+  const processedCars = await Promise.all(
+    cars.map(async (carData: any) => {
+      const car = await Car.findById(carData._id).populate({
+        path: "userId",
+        select: "firstName lastName fullName role profileImage email phone",
+      });
+
+      if (!car) return null;
+
+      // Availability check
+      const availability = await CarServices.getAvailability(car._id.toString(), targetDate);
 
       const availabilityCalendar = await getCarCalendar(car._id.toString());
 
-      const isBookmarked = await FavouriteCar.exists({
-        userId,
-        referenceId: car._id,
-      });
+      let isAvailable = !availability.isFullyBlocked;
+      if (time) {
+        const slot = availability.slots.find((s: any) => s.time === time);
+        isAvailable = slot ? slot.isAvailable : false;
+      }
 
-      const reviewSummary = await ReviewServices.getReviewSummaryFromDB(
-        car.id,
-        REVIEW_TYPE.CAR,
-      );
+      // date or time filter
+      if ((date || time) && !isAvailable) return null;
 
-      const isAvailable = await checkCarAvailabilityByDate(car, now);
+      // rating filter
+      const reviewSummary = await ReviewServices.getReviewSummaryFromDB(car._id.toString(), REVIEW_TYPE.CAR);
+      if (rating && reviewSummary.averageRating < Number(rating)) return null;
 
+      // other data
+      const tripsCountMap = await getCarTripCountMap([car._id]);
+      const isBookmarked = await FavouriteCar.exists({ userId, referenceId: car._id });
 
       return {
         ...car.toObject(),
+        distance: carData.distance ? (carData.distance / 1000).toFixed(1) : null,
         isAvailable,
         availabilityCalendar,
         trips: tripsCountMap[car._id.toString()] || 0,
@@ -98,19 +238,21 @@ const getAllCarsFromDB = async (query: any, userId: string) => {
         totalReviews: reviewSummary.totalReviews,
         starCounts: reviewSummary.starCounts,
         reviews: reviewSummary.reviews,
+        availabilitySlots: availability.slots
       };
-    }),
+    })
   );
 
-  const meta = await queryBuilder.countTotal();
-
-  if (!cars || cars.length === 0) {
-    throw new ApiError(404, "No cars are found in the database");
-  }
+  // filter out nulls
+  const finalCars = processedCars.filter(car => car !== null);
 
   return {
-    data: carsWithBookmark,
-    meta,
+    data: finalCars,
+    meta: {
+      page: Number(page),
+      limit: Number(limit),
+      total: finalCars.length,
+    },
   };
 };
 

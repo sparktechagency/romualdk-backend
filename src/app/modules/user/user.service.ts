@@ -37,7 +37,7 @@ const createAdminToDB = async (payload: any): Promise<IUser> => {
 const getAdminFromDB = async (query: any) => {
   const baseQuery = User.find({
     role: { $in: [USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN] },
-  }).select("firstName lastName email role profileImage createdAt updatedAt");
+  }).select("firstName lastName email role profileImage createdAt updatedAt status");
 
   const queryBuilder = new QueryBuilder<IUser>(baseQuery, query)
     .search(["firstName", "lastName", "fullName", "email"])
@@ -439,6 +439,30 @@ const updateUserStatusByIdToDB = async (
   return result;
 };
 
+const updateAdminStatusByIdToDB = async (
+  id: string,
+  status: STATUS.ACTIVE | STATUS.INACTIVE,
+) => {
+  if (![STATUS.ACTIVE, STATUS.INACTIVE].includes(status)) {
+    throw new ApiError(400, "Status must be either 'ACTIVE' or 'INACTIVE'");
+  }
+
+  const user = await User.findOne({
+    _id: id,
+    role: USER_ROLES.ADMIN,
+  });
+  if (!user) {
+    throw new ApiError(404, "No admin is found by this user ID");
+  }
+
+  const result = await User.findByIdAndUpdate(id, { status }, { new: true });
+  if (!result) {
+    throw new ApiError(400, "Failed to change status by this user ID");
+  }
+
+  return result;
+};
+
 const deleteUserByIdFromD = async (id: string) => {
   const user = await User.findOne({
     _id: id,
@@ -748,6 +772,7 @@ export const UserService = {
   getAllUsersFromDB,
   getUserByIdFromDB,
   updateUserStatusByIdToDB,
+  updateAdminStatusByIdToDB,
   deleteUserByIdFromD,
   deleteProfileFromDB,
   getAllHostsFromDB,

@@ -105,6 +105,11 @@ router.patch(
   UserController.updateHostStatusById,
 );
 router.patch(
+  "/admin/status/:id",
+  requireAdminOrSuperAdmin,
+  UserController.updateAdminStatusById,
+);
+router.patch(
   "/status/:id",
   requireAdminOrSuperAdmin,
   UserController.updateUserStatusById,

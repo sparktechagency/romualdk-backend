@@ -217,6 +217,21 @@ const updateUserStatusById = catchAsync(async (req, res) => {
   });
 });
 
+const updateAdminStatusById = catchAsync(async (req, res) => {
+  const { id } = req.params;
+
+  const { status } = req.body;
+
+  const result = await UserService.updateAdminStatusByIdToDB(id, status);
+
+  sendResponse(res, {
+    success: true,
+    statusCode: 200,
+    message: "Admin status updated successfully",
+    data: result,
+  });
+});
+
 const deleteUserById = catchAsync(async (req, res) => {
   const { id } = req.params;
 
@@ -298,6 +313,7 @@ export const UserController = {
   getAllUsers,
   getUserById,
   updateUserStatusById,
+  updateAdminStatusById,
   deleteUserById,
   deleteProfile,
   getAllHosts,
