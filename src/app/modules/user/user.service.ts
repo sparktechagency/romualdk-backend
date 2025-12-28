@@ -10,6 +10,7 @@ import { jwtHelper } from "../../../helpers/jwtHelper";
 import config from "../../../config";
 import QueryBuilder from "../../builder/queryBuilder";
 import { PipelineStage, Types } from "mongoose";
+import { afrikSmsService } from "../../../helpers/afrikSms.service";
 
 const createAdminToDB = async (payload: any): Promise<IUser> => {
   // check admin is exist or not;
@@ -64,6 +65,56 @@ const deleteAdminFromDB = async (id: any) => {
   return isExistAdmin;
 };
 
+// const createUserToDB = async (payload: Partial<IUser>) => {
+//   const requiredFields = [
+//     "firstName",
+//     "lastName",
+//     "countryCode",
+//     "dateOfBirth",
+//     "phone",
+//     "password",
+//   ];
+
+//   const missingFields = requiredFields.filter(
+//     (field) => !payload[field as keyof IUser],
+//   );
+
+//   if (missingFields.length > 0) {
+//     throw new ApiError(
+//       400,
+//       `Missing required fields: ${missingFields.join(", ")}`,
+//     );
+//   }
+
+//   const createUser = await User.create(payload);
+//   console.log(payload, "Payload");
+//   if (!createUser)
+//     throw new ApiError(StatusCodes.BAD_REQUEST, "Failed to create user");
+
+//   // Send OTP using Twilio Verify
+//   await twilioService.sendOTPWithVerify(
+//     createUser.phone,
+//     createUser.countryCode,
+//   );
+
+//   const createToken = jwtHelper.createToken(
+//     {
+//       id: createUser._id,
+//       phone: createUser.phone,
+//       role: createUser.role,
+//     },
+//     config.jwt.jwt_secret as Secret,
+//     config.jwt.jwt_expire_in as string,
+//   );
+
+//   const result = {
+//     token: createToken,
+//     user: createUser,
+//   };
+
+//   return result;
+// };
+
 const createUserToDB = async (payload: Partial<IUser>) => {
   const requiredFields = [
     "firstName",
@@ -75,26 +126,40 @@ const createUserToDB = async (payload: Partial<IUser>) => {
   ];
 
   const missingFields = requiredFields.filter(
-    (field) => !payload[field as keyof IUser],
+    (field) => !payload[field as keyof IUser]
   );
 
   if (missingFields.length > 0) {
-    throw new ApiError(
-      400,
-      `Missing required fields: ${missingFields.join(", ")}`,
-    );
+    throw new ApiError(400, `Missing required fields: ${missingFields.join(", ")}`);
   }
 
+  // generate numeric OTP
+  const otp = afrikSmsService.generateOTP();
+  const expireAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
+
+  payload.authentication = {
+    oneTimeCode: otp,
+    expireAt: expireAt,
+    isResetPassword: false
+  };
+
   const createUser = await User.create(payload);
-  console.log(payload, "Payload");
+  
   if (!createUser)
     throw new ApiError(StatusCodes.BAD_REQUEST, "Failed to create user");
 
-  // Send OTP using Twilio Verify
-  await twilioService.sendOTPWithVerify(
-    createUser.phone,
-    createUser.countryCode,
-  );
+  const smsMessage = `Your Emma verification code is ${otp}. Valid for 5 minutes.`;
+  
+  try {
+    await afrikSmsService.sendSMS(
+      createUser.phone,
+      createUser.countryCode,
+      smsMessage
+    );
+  } catch (error) {
+    console.error("SMS Sending failed:", error);
+   
+  }
 
   const createToken = jwtHelper.createToken(
     {
@@ -106,12 +171,10 @@ const createUserToDB = async (payload: Partial<IUser>) => {
     config.jwt.jwt_expire_in as string,
   );
 
-  const result = {
+  return {
     token: createToken,
     user: createUser,
   };
-
-  return result;
 };
 
 const getUserProfileFromDB = async (
@@ -155,7 +218,7 @@ const switchProfileToDB = async (
   if (!user) throw new ApiError(404, "This user is not found in the database");
 
   if (![USER_ROLES.USER, USER_ROLES.HOST].includes(role))
-    throw new ApiError(400, "Role is mustbe either 'USER' or 'HOST'");
+    throw new ApiError(400, "Role is must be either 'USER' or 'HOST'");
 
   // if (role === USER_ROLES.HOST && user.hostStatus !== HOST_STATUS.APPROVED) {
   //   throw new ApiError(400, "User cannot switch to host before admin approval");
@@ -260,7 +323,7 @@ const getHostRequestByIdFromDB = async (id: string) => {
   if (!result)
     throw new ApiError(
       404,
-      "No host requsest is found in the database by this ID",
+      "No host request is found in the database by this ID",
     );
 
   return result;
