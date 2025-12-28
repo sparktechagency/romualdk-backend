@@ -189,43 +189,105 @@ const forgetPasswordToDB = async (payload: any) => {
   }
 };
 
-//verify phone - ADD countryCode parameter
-// const verifyPhoneToDB = async (phone: string, code: string, countryCode: string) => {
 
-//     const user = await User.findOne({ phone, countryCode });
-//     if (!user) throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
+// twilio verify phone OTP - ADD countryCode parameter
+// const verifyPhoneToDB = async (payload: {
+//   phone: string;
+//   code: string;
+//   countryCode: string;
+// }) => {
+//   const { phone, code, countryCode } = payload;
 
-//     // ✅ Pass countryCode to Twilio
-//     const isValid = await twilioService.verifyOTP(phone, code, countryCode);
-//     if (!isValid) {
-//         throw new ApiError(StatusCodes.BAD_REQUEST, "Invalid or expired OTP");
-//     }
+//   // check user exist
+//   const isExistUser = await User.findOne({ phone, countryCode }).select(
+//     "+authentication",
+//   );
+//   if (!isExistUser) {
+//     throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
+//   }
 
-//     const result = await User.findOneAndUpdate(
-//         { phone, countryCode },
-//         { verified: true }
+//   // OTP validation
+//   const isValid = await twilioService.verifyOTP(phone, code, countryCode);
+//   if (!isValid) {
+//     throw new ApiError(StatusCodes.BAD_REQUEST, "Invalid or expired OTP");
+//   }
+
+//   let message;
+//   let data;
+
+//   // CASE–1: First time verify (like email verified = true)
+//   if (!isExistUser.verified) {
+//     await User.findOneAndUpdate(
+//       { _id: isExistUser._id },
+//       {
+//         verified: true,
+//         authentication: {
+//           oneTimeCode: null,
+//           expireAt: null,
+//           isResetPassword: false,
+//         },
+//       },
 //     );
 
-//     return result;
+//     message = "Your account is verified successfully";
+//   }
+//   // CASE–2: Forgot password flow (same as old email logic)
+//   else {
+//     await User.findOneAndUpdate(
+//       { _id: isExistUser._id },
+//       {
+//         authentication: {
+//           isResetPassword: true,
+//           oneTimeCode: null,
+//           expireAt: null,
+//         },
+//       },
+//     );
+
+//     // token generate exactly same way
+//     const createToken = cryptoToken();
+
+//     // save token in ResetToken Collection
+//     await ResetToken.create({
+//       user: isExistUser._id,
+//       token: createToken,
+//       expireAt: new Date(Date.now() + 5 * 60000), // 5 min
+//     });
+
+//     message = "Verification successful: Use this token to reset your password";
+//     data = createToken;
+//   }
+
+//   return { data, message };
 // };
+
+//reset password - ADD countryCode parameter
 
 const verifyPhoneToDB = async (payload: {
   phone: string;
-  code: string;
+  code: string; 
   countryCode: string;
 }) => {
   const { phone, code, countryCode } = payload;
 
-  // check user exist
+
   const isExistUser = await User.findOne({ phone, countryCode }).select(
     "+authentication",
   );
+
   if (!isExistUser) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
   }
 
-  // OTP validation
-  const isValid = await twilioService.verifyOTP(phone, code, countryCode);
+
+  const dbOtp = isExistUser.authentication?.oneTimeCode;
+  const expiry = isExistUser.authentication?.expireAt;
+
+  const isValid = 
+    dbOtp !== null && 
+    dbOtp === Number(code) && 
+    expiry && new Date(expiry) > new Date();
+
   if (!isValid) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "Invalid or expired OTP");
   }
@@ -233,39 +295,39 @@ const verifyPhoneToDB = async (payload: {
   let message;
   let data;
 
-  // CASE–1: First time verify (like email verified = true)
+ 
   if (!isExistUser.verified) {
     await User.findOneAndUpdate(
       { _id: isExistUser._id },
       {
         verified: true,
-        authentication: {
-          oneTimeCode: null,
-          expireAt: null,
-          isResetPassword: false,
+        $set: {
+          "authentication.oneTimeCode": null,
+          "authentication.expireAt": null,
+          "authentication.isResetPassword": false,
         },
       },
     );
 
     message = "Your account is verified successfully";
-  }
-  // CASE–2: Forgot password flow (same as old email logic)
+  } 
+
   else {
     await User.findOneAndUpdate(
       { _id: isExistUser._id },
       {
-        authentication: {
-          isResetPassword: true,
-          oneTimeCode: null,
-          expireAt: null,
+        $set: {
+          "authentication.isResetPassword": true,
+          "authentication.oneTimeCode": null,
+          "authentication.expireAt": null,
         },
       },
     );
 
-    // token generate exactly same way
+   
     const createToken = cryptoToken();
 
-    // save token in ResetToken Collection
+
     await ResetToken.create({
       user: isExistUser._id,
       token: createToken,
@@ -279,7 +341,7 @@ const verifyPhoneToDB = async (payload: {
   return { data, message };
 };
 
-//reset password - ADD countryCode parameter
+
 const resetPasswordToDB = async (
   token: string,
   payload: { newPassword: string; confirmPassword: string },
