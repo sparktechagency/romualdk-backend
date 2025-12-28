@@ -5,7 +5,10 @@ import { TransactionService } from "./transaction.service";
  
 
 const getAllTransactions = catchAsync(async (req: Request, res: Response) => {
-  const result = await TransactionService.getAllTransactions(req.query);
+  const result = await TransactionService.getAllTransactions(
+    req.query
+  );
+
   sendResponse(res, {
     statusCode: 200,
     success: true,

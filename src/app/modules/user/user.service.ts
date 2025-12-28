@@ -66,10 +66,9 @@ const deleteAdminFromDB = async (id: any) => {
 
 const createUserToDB = async (payload: Partial<IUser>) => {
   const requiredFields = [
-    "firstName",
-    "lastName",
+    "fullName",
+    "email",
     "countryCode",
-    "dateOfBirth",
     "phone",
     "password",
   ];
