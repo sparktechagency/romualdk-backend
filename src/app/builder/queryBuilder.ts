@@ -56,8 +56,8 @@ class QueryBuilder<T> {
     ["fromDate", "toDate"].forEach((field) => {
       if (queryObj[field]) {
         const date = new Date(queryObj[field] as string);
-        if (field === "fromDate") this.modelQuery = this.modelQuery.where("fromDate").gte(date);
-        if (field === "toDate") this.modelQuery = this.modelQuery.where("toDate").lte(date);
+        if (field === "fromDate") this.modelQuery = this.modelQuery.where("fromDate").gte(date.getTime());
+        if (field === "toDate") this.modelQuery = this.modelQuery.where("toDate").lte(date.getTime());
         delete queryObj[field];
       }
     });

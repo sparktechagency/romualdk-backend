@@ -13,13 +13,18 @@ import QueryBuilder from "../../builder/queryBuilder";
 
 // -------- Create Booking ----------
 const createBooking = async (body: any, userId: string) => {
+  const DRIVER_FIXED_PRICE = 500;
   const { carId, fromDate, toDate, type } = body;
-  const car = await Car.findById(carId);
+  const car = await Car.findById(carId)
+    .select("dailyPrice hourlyPrice userId")
+    .lean();
   if (!car) throw new Error("Car not found");
-  const dayHour = calculatePrice(fromDate, toDate);
-  const dailyPrice = car.dailyPrice ?? 0;
-  const hourlyPrice = car.hourlyPrice ?? 0;
-  const totalAmount = dayHour.days * dailyPrice + dayHour.hours * hourlyPrice;
+  const { billableDays } = calculatePrice(fromDate, toDate);
+
+  let totalAmount = billableDays * car.dailyPrice;
+  if (type === Driver_STATUS.WITHDRIVER) {
+    totalAmount += DRIVER_FIXED_PRICE;
+  }
 
   const booking = await Booking.create({
     carId,
@@ -329,7 +334,6 @@ const getAllBookingsForAdmin = async (query: Record<string, any>) => {
   return { data, meta };
 };
 
-
 // ============Get booking by ID ============
 const getBookingById = async (bookingId: string) => {
   const booking = await Booking.findById(bookingId)
@@ -349,14 +353,11 @@ const updateBookingByAdmin = async (
   bookingId: string,
   payload: Partial<any>
 ) => {
-  if (!Types.ObjectId.isValid(bookingId))
-    throw new Error("Invalid booking id");
+  if (!Types.ObjectId.isValid(bookingId)) throw new Error("Invalid booking id");
 
-  const booking = await Booking.findByIdAndUpdate(
-    bookingId,
-    payload,
-    { new: true }
-  )
+  const booking = await Booking.findByIdAndUpdate(bookingId, payload, {
+    new: true,
+  })
     .populate("carId")
     .populate("userId")
     .populate("hostId")
@@ -370,8 +371,7 @@ const updateBookingByAdmin = async (
 // ==========Delete booking by ID ===========
 
 const deleteBookingByAdmin = async (bookingId: string) => {
-  if (!Types.ObjectId.isValid(bookingId))
-    throw new Error("Invalid booking id");
+  if (!Types.ObjectId.isValid(bookingId)) throw new Error("Invalid booking id");
 
   const booking = await Booking.findByIdAndDelete(bookingId);
   if (!booking) throw new Error("Booking not found");
@@ -379,88 +379,97 @@ const deleteBookingByAdmin = async (bookingId: string) => {
   return booking;
 };
 
-
 // ========== Get booking status stats for chart ==========
-
 
 const getBookingStatusStats = async (year?: number) => {
   // Default to current year if not provided
   const targetYear = year ?? new Date().getFullYear();
 
-  const start = new Date(targetYear, 0, 1);        // January 1, targetYear
-  const end = new Date(targetYear + 1, 0, 1);      // January 1, next year
+  const start = new Date(targetYear, 0, 1); // January 1, targetYear
+  const end = new Date(targetYear + 1, 0, 1); // January 1, next year
 
- const stats = await Booking.aggregate([
-  {
-    $addFields: {
-      analyticsDate: {
-        $switch: {
-          branches: [
-            // Cancelled → cancelledAt
-            {
-              case: { $eq: ["$carStatus", CAR_STATUS.CANCELLED] },
-              then: "$cancelledAt",
-            },
-
-            // Completed → checkOut / toDate
-            {
-              case: { $eq: ["$carStatus", CAR_STATUS.COMPLETED] },
-              then: "$checkedOutAt",
-            },
-
-            // Upcoming / Active → fromDate
-            {
-              case: {
-                $in: ["$carStatus", [CAR_STATUS.UPCOMING, CAR_STATUS.ONGOING]],
+  const stats = await Booking.aggregate([
+    {
+      $addFields: {
+        analyticsDate: {
+          $switch: {
+            branches: [
+              // Cancelled → cancelledAt
+              {
+                case: { $eq: ["$carStatus", CAR_STATUS.CANCELLED] },
+                then: "$cancelledAt",
               },
-              then: "$fromDate",
-            },
-          ],
-          default: "$fromDate",
+
+              // Completed → checkOut / toDate
+              {
+                case: { $eq: ["$carStatus", CAR_STATUS.COMPLETED] },
+                then: "$checkedOutAt",
+              },
+
+              // Upcoming / Active → fromDate
+              {
+                case: {
+                  $in: [
+                    "$carStatus",
+                    [CAR_STATUS.UPCOMING, CAR_STATUS.ONGOING],
+                  ],
+                },
+                then: "$fromDate",
+              },
+            ],
+            default: "$fromDate",
+          },
         },
       },
     },
-  },
 
-  // Now filter by correct analytics date
-  {
-    $match: {
-      analyticsDate: { $gte: start, $lt: end },
+    // Now filter by correct analytics date
+    {
+      $match: {
+        analyticsDate: { $gte: start, $lt: end },
+      },
     },
-  },
 
-  {
-    $addFields: {
-      chartStatus: {
-        $switch: {
-          branches: [
-            { case: { $eq: ["$carStatus", CAR_STATUS.COMPLETED] }, then: "Completed" },
-            { case: { $eq: ["$carStatus", CAR_STATUS.ONGOING] }, then: "Active" },
-            { case: { $eq: ["$carStatus", CAR_STATUS.CANCELLED] }, then: "Cancelled" },
-            {
-              case: {
-                $and: [
-                  { $eq: ["$status", BOOKING_STATUS.PAID] },
-                  { $eq: ["$checkIn", false] },
-                ],
+    {
+      $addFields: {
+        chartStatus: {
+          $switch: {
+            branches: [
+              {
+                case: { $eq: ["$carStatus", CAR_STATUS.COMPLETED] },
+                then: "Completed",
               },
-              then: "Upcoming",
-            },
-          ],
-          default: "Other",
+              {
+                case: { $eq: ["$carStatus", CAR_STATUS.ONGOING] },
+                then: "Active",
+              },
+              {
+                case: { $eq: ["$carStatus", CAR_STATUS.CANCELLED] },
+                then: "Cancelled",
+              },
+              {
+                case: {
+                  $and: [
+                    { $eq: ["$status", BOOKING_STATUS.PAID] },
+                    { $eq: ["$checkIn", false] },
+                  ],
+                },
+                then: "Upcoming",
+              },
+            ],
+            default: "Other",
+          },
         },
       },
     },
-  },
 
-  {
-    $group: {
-      _id: "$chartStatus",
-      count: { $sum: 1 },
+    {
+      $group: {
+        _id: "$chartStatus",
+        count: { $sum: 1 },
+      },
     },
-  },
-]);
-
+  ]);
 
   const total = stats.reduce((sum, item) => sum + item.count, 0) || 1; // avoid divide by zero
 
@@ -483,7 +492,6 @@ const getBookingStatusStats = async (year?: number) => {
     stats: result,
   };
 };
- 
 
 // -------- Export as object ----------
 export const BookingService = {
